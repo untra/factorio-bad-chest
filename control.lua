@@ -1,129 +1,141 @@
-require "defines"
-require "lib.TickBalancer"
-
-local mod = {}
-
-function implode(delimiter, list)
-  local len = #list
-  if len == 0 then
-    return ""
-  end
-  local string = list[1]
-  for i = 2, len do
-    string = string .. delimiter .. list[i]
-  end
-  return string
+function get_signal_value(entity,signal)
+	local behavior = entity.get_control_behavior()
+	if behavior == nil then	return(0)	end
+	
+	if signal == nil or signal.name == nil then return(0)	end
+	
+	local redval,greenval=0,0
+	
+	local rednetwork = entity.get_circuit_network(defines.wire_type.red)
+	if rednetwork then
+	  redval = rednetwork.get_signal(signal)  
+	end
+	
+	local greennetwork = entity.get_circuit_network(defines.wire_type.green)
+	if greennetwork then
+	  greenval = greennetwork.get_signal(signal)
+	end
+	return(redval + greenval)
 end
 
-function mod:init()
-  self.deployers = TickBalancer.setupForEntity("blueprint-deployer", "deployers", 20, function(data)
-    self:checkForDeployment(data)
-  end, function(entity)
-    return {entity=entity}
-  end)
-
-  -- Small hack to add another entity type handled in the exact same way
-  TickBalancer.entityBalancers["blueprint-destructive-deployer"] = self.deployers
-
-  --[[
-  self.printers = TickBalancer.setupForEntity("blueprint-printer", "printers", 20, function(data)
-    -- noop
-  end, function(entity)
-    return {entity=entity, blueprint=nil}
-  end)
-  ]]--
-end
-
-function mod:checkForDeployment(data)
-  local deployer = data.entity
-  local isDestructive = (deployer.name == "blueprint-destructive-deployer")
-
-  -- Check chest inventory for blueprint
-  local deployerInventory = deployer.get_inventory(defines.inventory.chest)
-  local deployerItemStack = deployerInventory[1]
-
-  if deployerItemStack.valid_for_read then
-    if data.currentBlueprint ~= deployerItemStack then
-      -- Blueprint has been inserted
-      data.currentBlueprint = deployerItemStack
-      data.deployed = false
-    else
-      -- Blueprint has not been changed, but should check ghosts for expiry
-      return
-    end
-  else
-    if data.currentBlueprint ~= nil then
-      -- Blueprint has been removed, reset flags
-      data.currentBlueprint = nil
-      data.deployed = false
-    end
-    -- Otherwise still waiting for a blueprint
-    return
-  end
-
-  local player = game.players[1]
-
-  if deployerItemStack.name ~= "blueprint" then
-    -- TODO: Sort out player messaging
-    player.print("Blueprint must be inserted into deployer")
-    return
-  end
-
-  local bpEntities = deployerItemStack.get_blueprint_entities()
+function deployBlueprint(bp,deployer,offsetpos)
+  if not bp then return end
+  if not bp.valid_for_read then return end
+  if not bp.is_blueprint_setup() then return end
+  local bpEntities = bp.get_blueprint_entities()
   local anchorEntity = nil
   for _,bpEntity in pairs(bpEntities) do
-    if (bpEntity.name == "blueprint-anchor") then
+    if bpEntity.name == "wooden-chest" then
       anchorEntity = bpEntity
       break
     end
   end
   if not anchorEntity then
-    -- TODO: Sort out player messaging
-    player.print("Cannot deploy blueprint, does not contain a Blueprint Anchor")
+    for _,bpEntity in pairs(bpEntities) do
+      if bpEntity.name == "blueprint-deployer" then
+        anchorEntity = bpEntity
+        break
+      end
+    end 
+  end
+		
+  local anchorPosition = {x=0,y=0}
+  if anchorEntity then
+    anchorPosition = anchorEntity.position
+  end 
+  
+  local deploypos = {
+    x = deployer.position.x + offsetpos.x - anchorPosition.x,
+	 y = deployer.position.y + offsetpos.y - anchorPosition.y
+	 }
+    
+  bp.build_blueprint{
+    surface=deployer.surface,
+    force=deployer.force,
+    position=deploypos,
+    force_build=true
+  }  
+end  
+
+function onTickDeployer(deployer)
+  local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
+  local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
+  local reportPrintNeeds = get_signal_value(deployer,{name="logistic-robot",type="item"})
+  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
+  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
+  local W = get_signal_value(deployer,{name="signal-W",type="virtual"})
+  local H = get_signal_value(deployer,{name="signal-H",type="virtual"})
+
+  -- Check chest inventory for blueprint
+  local deployerInventory = deployer.get_inventory(defines.inventory.chest)
+  local deployerItemStack = deployerInventory[1]
+
+  if not deployerItemStack.valid_for_read then
     return
   end
-  local surface = deployer.surface
-  data.ghosts = {}
-  for _,bpEntity in pairs(bpEntities) do
-    -- Anchor is never placed as it would conflict with the deployer itself
-    if (bpEntity.name ~= "blueprint-anchor") then
-      bpEntity.position = {x= bpEntity.position.x - anchorEntity.position.x + deployer.position.x, y= bpEntity.position.y - anchorEntity.position.y + deployer.position.y}
-      bpEntity.force = deployer.force
 
-      if surface.can_place_entity(bpEntity) or isDestructive then
-        bpEntity.inner_name = bpEntity.name
-        bpEntity.name = "entity-ghost"
-        local createdGhost = surface.create_entity(bpEntity)
-        table.insert(data.ghosts, createdGhost)
-
-        -- If destructive, scan for colliding entities
-        if isDestructive then
-          -- Note: the following may be erroneous -- theoretically it should be the collision_box determining whether items collide with trees and therefore whether bots can place them;
-          -- but this resulted in situations where trees didn't get deconstructed leaving bots unable to place the entity, however I was able to place it manually without removing the
-          -- tree, and shift-placing the blueprint WOULD result in the tree getting deconstructed. Changing to selection_box fixed the problem for now but I'm not ruling out
-          -- the possibility it was a mistake in how the entity placement positions are calculated WRT the blueprint and the deployer positions...
-          local conflictArea = createdGhost.ghost_prototype.selection_box
-          local conflicts = surface.find_entities({{bpEntity.position.x + conflictArea.left_top.x, bpEntity.position.y + conflictArea.left_top.y}, {bpEntity.position.x + conflictArea.right_bottom.x, bpEntity.position.y + conflictArea.right_bottom.y}})
-          for _,conflictEntity in ipairs(conflicts) do
-            if conflictEntity ~= createdGhost then
-              -- Ordering deconstruction for some entities throws an error and kills the game. I've observed this applying to things like background grass, asterisks (i.e. decorative entities).
-              -- There doesn't seem to be a consistent way to determine what entities can or can't be mined by your robots! (The minable property didn't fix this, apparently grass is minable!)
-              -- Would be nice to have a proper test for this instead of error trapping but this works for now.
-              pcall(function()
-                conflictEntity.order_deconstruction(deployer.force)
-              end)
-            end
-          end
-        end
+  
+  if deployPrint > 0 then
+    if deployerItemStack.name == "blueprint" then
+      deployBlueprint(deployerItemStack,deployer,{x=X,y=Y})
+    elseif deployerItemStack.name == "blueprint-book" then
+      local bookInv = deployerItemStack.get_inventory(defines.inventory.item_main)
+      if deployPrint > #bookInv then
+        local bookActiveInv = deployerItemStack.get_inventory(defines.inventory.item_active)
+        deployBlueprint(bookActiveInv[1],deployer,{x=X,y=Y})    
+      else
+        deployBlueprint(bookInv[deployPrint],deployer,{x=X,y=Y})
       end
     end
+  elseif deconstructArea == -1 then
+    deployer.surface.deconstruct_area{
+	   area={
+	     {deployer.position.x+X-(H/2),deployer.position.y+Y-(W/2)},
+		  {deployer.position.x+X+(H/2),deployer.position.y+Y+(W/2)}
+		  },
+		force=deployer.force}
+    deployer.cancel_deconstruction(deployer.force) -- Don't deconstruct myself in an area order
+  elseif deconstructArea == -2 then
+    deployer.order_deconstruction(deployer.force) -- Okay, you really meant it. Deconstruct myself.
+  elseif reportPrintNeeds then
+    --TODO: count up needed materials for this blueprint
   end
-  data.deployed = true
 end
 
+function onTick(event)
+  if global.deployers then
+    for _,deployer in pairs(global.deployers) do
+  		if type(deployer)=="table" and deployer.valid and deployer.name == "blueprint-deployer" then
+  		  onTickDeployer(deployer)
+  		else
+  		  global.deployers[_]=nil
+  		  game.players[1].print("removed deployer")
+  		end
+    end
+  end
+end
+
+function onBuiltEntity(event)
+  local ent = event.created_entity
+  if not ent or not ent.valid or ent.name ~= "blueprint-deployer" then return end
+  if not global.deployers then global.deployers={} end
+  table.insert(global.deployers,ent)
+  game.players[1].print("built deployer")
+end
+
+
 function onInit()
-  mod:init()
+  
+end
+
+function onLoad()
+  
 end
 
 script.on_init(onInit)
-script.on_load(onInit)
+script.on_load(onLoad)
+
+script.on_event(defines.events.on_tick, onTick)
+script.on_event(defines.events.on_built_entity, onBuiltEntity)
+script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
+
