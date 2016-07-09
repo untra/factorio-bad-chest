@@ -109,7 +109,7 @@ function onTick(event)
   		  onTickDeployer(deployer)
   		else
   		  global.deployers[_]=nil
-  		  game.players[1].print("removed deployer")
+  		  --game.players[1].print("removed deployer")
   		end
     end
   end
@@ -120,7 +120,7 @@ function onBuiltEntity(event)
   if not ent or not ent.valid or ent.name ~= "blueprint-deployer" then return end
   if not global.deployers then global.deployers={} end
   table.insert(global.deployers,ent)
-  game.players[1].print("built deployer")
+  --game.players[1].print("built deployer")
 end
 
 
