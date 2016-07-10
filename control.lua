@@ -87,7 +87,7 @@ function onTickDeployer(deployer)
         deployBlueprint(bookInv[deployPrint],deployer,{x=X,y=Y})
       end
     end
-  elseif deconstructArea == -1 then
+  elseif deconstructArea == -1 then -- decon=-1 Deconstruct Area
     deployer.surface.deconstruct_area{
 	   area={
 	     {deployer.position.x+X-(H/2),deployer.position.y+Y-(W/2)},
@@ -95,8 +95,15 @@ function onTickDeployer(deployer)
 		  },
 		force=deployer.force}
     deployer.cancel_deconstruction(deployer.force) -- Don't deconstruct myself in an area order
-  elseif deconstructArea == -2 then
-    deployer.order_deconstruction(deployer.force) -- Okay, you really meant it. Deconstruct myself.
+  elseif deconstructArea == -2 then -- decon=-2 Deconstruct Self
+    deployer.order_deconstruction(deployer.force)
+  elseif deconstructArea == 1 then -- decon=1 Cancel Area
+    deployer.surface.cancel_deconstruct_area{
+	   area={
+	     {deployer.position.x+X-(H/2),deployer.position.y+Y-(W/2)},
+		  {deployer.position.x+X+(H/2),deployer.position.y+Y+(W/2)}
+		  },
+		force=deployer.force}
   elseif reportPrintNeeds then
     --TODO: count up needed materials for this blueprint
   end
