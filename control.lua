@@ -18,32 +18,35 @@ function get_signal_value(entity,signal)
 	return(redval + greenval)
 end
 
+function findEntityInBlueprint(bp,entityName)
+  local bpEntities = bp.get_blueprint_entities()
+  local e = nil
+  for _,bpEntity in pairs(bpEntities) do
+    if bpEntity.name == entityName then
+      e = bpEntity
+      break
+    end
+  end
+  return(e)
+end
+
+
 function deployBlueprint(bp,deployer,offsetpos)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
   local bpEntities = bp.get_blueprint_entities()
   local anchorEntity = nil
-  for _,bpEntity in pairs(bpEntities) do
-    if bpEntity.name == "wooden-chest" then
-      anchorEntity = bpEntity
-      break
-    end
+  anchorEntity = findEntityInBlueprint(bp,"wooden-chest")
+  if not anchorEntity then 
+    anchorEntity = findEntityInBlueprint(bp,"blueprint-deployer")
   end
-  if not anchorEntity then
-    for _,bpEntity in pairs(bpEntities) do
-      if bpEntity.name == "blueprint-deployer" then
-        anchorEntity = bpEntity
-        break
-      end
-    end 
-  end
-		
+
   local anchorPosition = {x=0,y=0}
   if anchorEntity then
     anchorPosition = anchorEntity.position
   end 
-  
+
   local deploypos = {
     x = deployer.position.x + offsetpos.x - anchorPosition.x,
 	 y = deployer.position.y + offsetpos.y - anchorPosition.y
