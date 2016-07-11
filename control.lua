@@ -138,7 +138,6 @@ function onTickPrinter(printer)
   end
   
   if printer.entity.crafting_progress >= 0.99 then
-    --game.players[1].print("craft finished: " .. printer.entity.recipe.name ) 
     printer.entity.crafting_progress = 0
     local inInv = printer.entity.get_inventory(defines.inventory.assembling_machine_input)
     local outInv = printer.entity.get_inventory(defines.inventory.assembling_machine_output)  
@@ -168,10 +167,11 @@ function onTickPrinter(printer)
         end
       end
       
-      inInv.remove({{name="blueprint-book",count=1}})      
+      inInv.remove{name="blueprint-book",count=1}      
     elseif printer.entity.recipe.name == "insert-blueprint" then
       --Copy book to new book (prints are defragmented to the front of the book). 
       --Insert additional print in first available slot (active, then main) 
+      --If book is already completely full, will overwrite Active print. (Useful for preparing to Clone)
       if not inInv[1].valid_for_read or not inInv[2].valid_for_read then return end
       if outInv[1].valid_for_read then return end -- previous output not taken away!
       
@@ -186,13 +186,6 @@ function onTickPrinter(printer)
       local outBookActive = outBook.get_inventory(defines.inventory.item_active)
       local outBookMain = outBook.get_inventory(defines.inventory.item_main)
       
-      outBookActive.insert{name="blueprint",count=1}
-      if not inBookActive[1].valid_for_read then 
-        copyBlueprint(inPrint,outBookActive[1])
-      else
-        copyBlueprint(inBookActive[1],outBookActive[1])
-      end
-      
       local j = 1
       for i=1,#inBookMain,1 do
         if inBookMain[i].valid_for_read then
@@ -201,16 +194,23 @@ function onTickPrinter(printer)
           j=j+1
         end
       end
-      
-      if inBookActive[1].valid_for_read then
-        outBookMain.insert{name="blueprint",count=1}
-        copyBlueprint(inPrint,outBookMain[j])
-      end 
+    
+      outBookActive.insert{name="blueprint",count=1}
+      if outBookMain.get_item_count("blueprint") < #outBookMain then
+        if inBookActive[1].valid_for_read then
+          outBookMain.insert{name="blueprint",count=1}
+          copyBlueprint(inPrint,outBookMain[j])
+          copyBlueprint(inBookActive[1],outBookActive[1])
+        else
+          copyBlueprint(inPrint,outBookActive[1])
+        end 
+      else
+        copyBlueprint(inPrint,outBookActive[1])
+      end
       
       inInv.remove{name="blueprint-book",count=1}
       inInv.remove{name="blueprint",count=1}
     elseif printer.entity.recipe.name == "extract-blueprint" then
-      game.players[1].print("extract")
       --Remove first print from book and move to output. Active then Main print first. 
       --If book is empty, consume book
       if not inInv[1].valid_for_read then return end
