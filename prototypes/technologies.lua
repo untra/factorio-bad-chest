@@ -7,20 +7,14 @@ data:extend(
     icon_size = 128,
     effects =
     {
-      {
-        type = "unlock-recipe",
-        recipe = "blueprint-deployer"
-      },
-      --[[
-      {
-        type = "unlock-recipe",
-        recipe = "blueprint-printer"
-      },
-      {
-        type = "unlock-recipe",
-        recipe = "clone-blueprint"
-      },
-      ]]--
+      {type = "unlock-recipe", recipe = "blueprint-deployer" },
+      {type = "unlock-recipe", recipe = "blueprint-printer" },
+      {type = "unlock-recipe", recipe = "clone-blueprint" },
+      {type = "unlock-recipe", recipe = "wipe-blueprint" },
+      {type = "unlock-recipe", recipe = "insert-blueprint" },
+      {type = "unlock-recipe", recipe = "extract-blueprint" },
+
+
     },
     prerequisites = {"logistic-system"},
     unit = {
