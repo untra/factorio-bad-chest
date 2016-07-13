@@ -13,6 +13,17 @@ data:extend(
   },
   {
     type = "recipe",
+    name = "blueprint-digitizer",
+    enabled = false,
+    ingredients =
+    {
+      {"steel-chest", 1},
+      {"advanced-circuit", 1},
+    },
+    result = "blueprint-digitizer"
+  },
+  {
+    type = "recipe",
     name = "blueprint-printer",
     enabled = false,
     ingredients =

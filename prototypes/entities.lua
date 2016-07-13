@@ -39,6 +39,9 @@ data:extend{
     circuit_connector_sprites = get_circuit_connector_sprites({0.1875, 0.15625}, nil, 18),
     circuit_wire_max_distance = 7.5
   }}
+
+local bpDigitizer = copyPrototype("container","blueprint-deployer","blueprint-digitizer")
+data:extend{bpDigitizer}  
   
 local bpPrinter = copyPrototype("assembling-machine","assembling-machine-2","blueprint-printer")  
     bpPrinter.minable.result = "blueprint-printer"
