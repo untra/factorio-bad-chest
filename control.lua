@@ -64,7 +64,7 @@ function copyBlueprint(inStack,outStack)
   outStack.set_blueprint_entities(inStack.get_blueprint_entities())
   outStack.set_blueprint_tiles(inStack.get_blueprint_tiles())
   outStack.blueprint_icons = inStack.blueprint_icons
-  outStack.label = inStack.label
+  if inStack.label then outStack.label = inStack.label end
 end
 
 local scripts=
