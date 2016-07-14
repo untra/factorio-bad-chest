@@ -2,28 +2,31 @@
 
 Commands 
 
-Reading a print leaves it in the input inventory
-in  blueprint: =1 Read print
-out blueprint: =1 successfully read, loaded print for editing 
-out blueprint: =-1 read failed
+Reading a print leaves it in the inventory
+in  signal-blue: =1 Read print
+out signal-blue: =1 successfully read, loaded print for editing 
+out signal-blue: =-1 read failed
 
-Writing a print destroys the input print and creates a new print in the output based on the edits made
-in  blueprint: =2 Write print (move input->output inventory)
-out blueprint: =2 print written 
-out blueprint: =-2 write failed (still in buffer)
+Writing a print replaces the input print with the stored data
+in  signal-blue: =2 Write print
+out signal-blue: =2 print written 
+out signal-blue: =-2 write failed (still in buffer)
 
 Writing to a print
-in  blueprint: =4 Write content (combine with Report message / gets no response on success)
-out blueprint: =-4 write failed
+in  signal-blue: =4 Write content (combine with Report message / gets no response on success)
+out signal-blue: =-4 write failed
 
-in  : =1 Request stats
-out S: Report print stats: S=1 0=#entities, 1=#tiles, 2=#icons, blue=#wholeprint
+
+in  B: Request BoM
+out B: Report BoM
+in  S: Request stats
+out S: Report stats: S=1 0=#entities, 1=#tiles, 2=#icons, blue=#wholeprint
 in  I: Request icon: I=icon number
 out I: Report icon: I=icon number, $iconsignal=1
 in  T: Request tile: T=tile number
 out T: Report tile: T=tile number, X,Y, $tilesignal=1
 in  E: Request entity: E=entity number
-out E: Report entities: E=enity number, X,Y, $entitysignal=1, R=hasrecipe, C=#connections, F=#filters?, modules as count, ???
+out E: Report entities: E=enity number, X,Y,D=direction $entitysignal=1, R=hasrecipe, C=#connections, F=#filters?, modules as count, ???
 in  C: Request entity-connections: C=entity number,0=connection number
 out C: Report entity-connections: C=entity number,0=connection number,1=remote entity,2=remote connection port
 in  R: Request recipe: R=entity number
@@ -47,49 +50,71 @@ print total size as serialized dump:
     n wire connections 
 --]]
 
-
-
-local function readPrint(digitizer,signals)
-  --TODO: Read from input stack to digitizerprints[digitizer.unit_number], destroy print?
-end
-
-local function writePrint(digitizer,signals)
-  --TODO: Assemble a print in the output slot and 
-end
-
-local function bpTileFromSignals(digitizer,signals)
-  if not global.digitizerscripts[digitizer.unit_number] then return end
-  local tiles = global.digitizerscripts[digitizer.unit_number].get_blueprint_tiles()
+local function readSignalsFromEntity(entity)
   
 end
 
+local function readPrint(digitizer,signals)
+  --TODO: digitizertargets[digitizer.unit_number] = adjacent deployer
+  --TODO: inStack = digitizertarget's stack, input stack for printer, inventory[1] for deployer
+  global.digitizerprints[digitizer.unit_number]={
+    tiles=inStack.get_blueprint_tiles(),
+    entites=inStack.get_blueprint_entities(),
+    icons=inStack.blueprint_icons,
+    label=inStack.label,
+  }
+  inStack.count=0
+end
+
+local function writePrint(digitizer,signals)
+  --TODO: Assemble a print in the output slot and
+  local storedPrint = global.digitizerprints[digitizer.unit_number]
+  
+  --TODO: outStack = newly created print in target slot
+  local outStack
+  outStack.set_blueprint_entities(storedPrint.entities)
+  outStack.set_blueprint_tiles(storedPrint.tiles)
+  outStack.blueprint_icons = storedPrint.icons
+  outStack.label = storedPrint.label 
+end
+
+local function bpTileFromSignals(digitizer,signals)
+  if not global.digitizerprints[digitizer.unit_number] then return end
+  local tiles = global.digitizerprints[digitizer.unit_number].tiles
+  --tiles[T] = 
+  --{
+  --  position={x=X,y=Y},
+  --  name=tilesignal, 
+  --}
+end
+
 local function bpSignalsFromTile(digitizer,signals)
-  if not global.digitizerscripts[digitizer.unit_number] then return end
+  if not global.digitizerprints[digitizer.unit_number] then return end
+  local tiles = global.digitizerprints[digitizer.unit_number].tiles
+  --TODO: output signal from tiles[T]: T=T, X=position.x, Y=position.y, tilesignal=1
 end
 
 local function bpEntityFromSignals(digitizer,signals)
-  if not global.digitizerscripts[digitizer.unit_number] then return end
+  if not global.digitizerprints[digitizer.unit_number] then return end
+  local entities = global.digitizerprints[digitizer.unit_number].entities
+  --TODO: entities[E] = { position={x=X,y=Y},name=entitysignal,entity_number=E,direction=D,recipe,filters,etc... }
 end
 
 local function bpSignalsFromEntity(digitizer,signals)
-  if not global.digitizerscripts[digitizer.unit_number] then return end
+  if not global.digitizerprints[digitizer.unit_number] then return end
+  local entities = global.digitizerprints[digitizer.unit_number].entities
+  --TODO: signal the entity
 end
 
 local function bpConnectionFromSignals(digitizer,signals)
-  if not global.digitizerscripts[digitizer.unit_number] then return end
+  if not global.digitizerprints[digitizer.unit_number] then return end
+  local entities = global.digitizerprints[digitizer.unit_number].entities
+  --TODO: entities[E].connections[?] = {?}
 end
 
 local function bpSignalsFromConnection(digitizer,signals)
   if not global.digitizerscripts[digitizer.unit_number] then return end
-end
-
-
-
-
-
-local function bpEntityFromSignal(digitizer,signals)
-end
-local function bpTileFromSignal(digitizer,signals)
+  local entities = global.digitizerprints[digitizer.unit_number].entities
 end
 
 
@@ -139,6 +164,7 @@ local function onBuiltDigitizer(event)
   if ent.name == "blueprint-digitizer" then 
     if not global.digitizers then global.digitizers={} end
     if not global.digitizerprints then global.digitizerprints={} end
+    if not global.digitizertargets then global.digitizertargets={} end
     table.insert(global.digitizers,ent)
   end
 end

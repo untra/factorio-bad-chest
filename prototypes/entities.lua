@@ -40,7 +40,8 @@ data:extend{
     circuit_wire_max_distance = 7.5
   }}
 
-local bpDigitizer = copyPrototype("container","blueprint-deployer","blueprint-digitizer")
+local bpDigitizer = copyPrototype("constant-combinator","constant-combinator","blueprint-digitizer")
+bpDigitizer.item_slot_count = 15
 data:extend{bpDigitizer}  
   
 local bpPrinter = copyPrototype("assembling-machine","assembling-machine-2","blueprint-printer")  

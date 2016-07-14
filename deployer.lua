@@ -55,7 +55,7 @@ local function onTickDeployers(event)
   if global.deployers then
     for _,deployer in pairs(global.deployers) do
   		if deployer.valid and deployer.name == "blueprint-deployer" then
-  		  deployerscripts.onTick(deployer)
+  		  onTickDeployer(deployer)
   		else
   		  global.deployers[_]=nil
   		end

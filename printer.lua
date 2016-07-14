@@ -28,7 +28,7 @@ local craftscripts = {
         end
       end
       
-      inInv.remove{name="blueprint-book",count=1}
+      inBook.count=0
     end
   },
   
@@ -76,8 +76,8 @@ local craftscripts = {
         copyBlueprint(inPrint,outBookActive[1])
       end
       
-      inInv.remove{name="blueprint-book",count=1}
-      inInv.remove{name="blueprint",count=1}
+      inBook.count=0
+      inPrint.count=0
     end
   },
 
@@ -108,7 +108,7 @@ local craftscripts = {
         copyBlueprint(inBookMain[i],outPrint)
         inBookMain.remove{name="blueprint",count=1}        
       else
-        inInv.remove{name="blueprint-book",count=1}
+        inBook.count=0
       end
     end
   },
