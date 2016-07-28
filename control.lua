@@ -74,7 +74,7 @@ deployer = require("deployer"),
 digitizer = require("digitizer"),
 }
 
-function onEvent(event)
+local function onEvent(event)
   for _,s in pairs(scripts) do
     if s[event.name] then
       s[event.name](event)

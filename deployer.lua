@@ -1,7 +1,6 @@
 local function onTickDeployer(deployer)
   local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
   local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
-  local reportPrintNeeds = get_signal_value(deployer,{name="logistic-robot",type="item"})
   local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
   local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
   local W = get_signal_value(deployer,{name="signal-W",type="virtual"})
@@ -11,12 +10,8 @@ local function onTickDeployer(deployer)
   local deployerInventory = deployer.get_inventory(defines.inventory.chest)
   local deployerItemStack = deployerInventory[1]
 
-  if not deployerItemStack.valid_for_read then
-    return
-  end
-
-  
   if deployPrint > 0 then
+    if not deployerItemStack.valid_for_read then return end
     if deployerItemStack.name == "blueprint" then
       deployBlueprint(deployerItemStack,deployer,{x=X,y=Y})
     elseif deployerItemStack.name == "blueprint-book" then
@@ -45,9 +40,6 @@ local function onTickDeployer(deployer)
 		  {deployer.position.x+X+(H/2),deployer.position.y+Y+(W/2)}
 		  },
 		force=deployer.force}
-  elseif reportPrintNeeds then
-    --TODO: count up needed materials for this blueprint (api!)
-    --TODO: output needs for ghosts in area
   end
 end
 
