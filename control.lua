@@ -83,6 +83,27 @@ function charsig(c)
 	end
 end
 
+function sigchar(c)
+	local charmap={
+    ['signal-A']='A',['signal-B']='B',['signal-C']='C',['signal-D']='D',
+    ['signal-E']='E',['signal-F']='F',['signal-G']='G',['signal-H']='H',
+    ['signal-I']='I',['signal-J']='J',['signal-K']='K',['signal-L']='L',
+    ['signal-M']='M',['signal-N']='N',['signal-O']='O',['signal-P']='P',
+    ['signal-Q']='Q',['signal-R']='R',['signal-S']='S',['signal-T']='T',
+    ['signal-U']='U',['signal-V']='V',['signal-W']='W',['signal-X']='X',
+    ['signal-Y']='Y',['signal-Z']='Z',
+
+    ['signal-blue']='',
+    ['signal-white']='',
+
+	}
+	if charmap[c] then
+		return charmap[c]
+	else
+		return ' '
+	end
+end
+
 
 local scripts=
 {

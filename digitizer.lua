@@ -32,15 +32,14 @@ local commandsig = {name="signal-blue",type="virtual"}
 
 local function onTickDigitizerDeployer(digitizer,deployer)
   local printStack = deployer.get_inventory(defines.inventory.chest)[1]
-
-  if not printStack or not printStack.valid or
-     not printStack.name == "blueprint" then
+  if not printStack or not printStack.valid_for_read or not printStack.name == "blueprint" then
     return
   end
 
   local txSignals = {}
 
   local command = get_signal_value(deployer,commandsig)
+  local write = get_signal_value(deployer,{name="signal-white",type="virtual"})
 
   if command == 0 then return end
 
@@ -99,24 +98,41 @@ local function onTickDigitizerDeployer(digitizer,deployer)
     txSignals[#txSignals+1]={index=#txSignals+1,count=e[sigE].direction, signal={name="signal-D",type="virtual"}}
     --TODO: other entity-specific? or dedicated messages?
   elseif command == 7 then -- Get Print Name, binary encoded, LSB leftmost
-    local s = string.upper(printStack.label or "")
-    local letters = {}
-    local i=1
-    while s do
-      local c
-      if #s > 1 then
-        c,s=s:sub(1,1),s:sub(2)
-      else
-        c,s=s,nil
+    if write == 1 then
+      local signals=deployer.get_circuit_network(defines.wire_type.red).signals
+      local str=""
+      for i=0,30 do
+        local endOfString=true
+        for _,sig in pairs(signals) do
+          local sigbit = bit32.extract(sig.count,i)
+          if sig.signal.type=="virtual" and sigbit==1 then
+            endOfString=false
+            str=str .. sigchar(sig.signal.name)
+          end
+        end
+
+        if endOfString then break end
       end
-      letters[c]=(letters[c] or 0)+i
-      i=i*2
-    end
+      printStack.label=str
+    else
+      local s = string.upper(printStack.label or "")
+      local letters = {}
+      local i=1
+      while s do
+        local c
+        if #s > 1 then
+          c,s=s:sub(1,1),s:sub(2)
+        else
+          c,s=s,nil
+        end
+        letters[c]=(letters[c] or 0)+i
+        i=i*2
+      end
 
-    for c,i in pairs(letters) do
-      txSignals[#txSignals+1]={index=#txSignals+1,count=i,signal={name=charsig(c),type="virtual"}}
+      for c,i in pairs(letters) do
+        txSignals[#txSignals+1]={index=#txSignals+1,count=i,signal={name=charsig(c),type="virtual"}}
+      end
     end
-
   end
 
   digitizer.get_or_create_control_behavior().parameters={parameters = txSignals}
