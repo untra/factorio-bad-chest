@@ -69,7 +69,9 @@ end
 
 function charsig(c)
 	local charmap={
-		["A"]='signal-A',["B"]='signal-B',["C"]='signal-C',["D"]='signal-D',["E"]='signal-E',
+    ["0"]='signal-0',["1"]='signal-1',["2"]='signal-2',["3"]='signal-3',["4"]='signal-4',
+    ["5"]='signal-5',["6"]='signal-6',["7"]='signal-7',["8"]='signal-8',["9"]='signal-9',
+    ["A"]='signal-A',["B"]='signal-B',["C"]='signal-C',["D"]='signal-D',["E"]='signal-E',
 		["F"]='signal-F',["G"]='signal-G',["H"]='signal-H',["I"]='signal-I',["J"]='signal-J',
 		["K"]='signal-K',["L"]='signal-L',["M"]='signal-M',["N"]='signal-N',["O"]='signal-O',
 		["P"]='signal-P',["Q"]='signal-Q',["R"]='signal-R',["S"]='signal-S',["T"]='signal-T',
@@ -85,6 +87,8 @@ end
 
 function sigchar(c)
 	local charmap={
+    ['signal-0']='0',['signal-1']='1',['signal-2']='2',['signal-3']='3',['signal-4']='4',
+    ['signal-5']='5',['signal-6']='6',['signal-7']='7',['signal-8']='8',['signal-9']='9',
     ['signal-A']='A',['signal-B']='B',['signal-C']='C',['signal-D']='D',
     ['signal-E']='E',['signal-F']='F',['signal-G']='G',['signal-H']='H',
     ['signal-I']='I',['signal-J']='J',['signal-K']='K',['signal-L']='L',
