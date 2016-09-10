@@ -67,12 +67,21 @@ local function onTickDigitizerDeployer(digitizer,deployer)
     txSignals[#txSignals+1]={index=#txSignals+1,count=#l,signal={name="signal-L",type="virtual"}}
 
   elseif command == 4 then -- Get print icons
-    local i = printStack.blueprint_icons
     --icons: I=icon number, iconsignal=1
     local sigI = get_signal_value(deployer,{name="signal-I",type="virtual"})
-    txSignals[#txSignals+1]={index=#txSignals+1,count=command,signal=commandsig}
-    txSignals[#txSignals+1]={index=#txSignals+1,count=sigI,signal={name="signal-I",type="virtual"}}
-    if i[sigI] then txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal=i[sigI].signal} end
+    local i = printStack.blueprint_icons
+    if write == 1 and sigI.count>0 and sigI.count<5 then
+      local deplNet=deployer.get_circuit_network(defines.wire_type.red)
+                 or deployer.get_circuit_network(defines.wire_type.green)
+      local signals=deplNet.signals
+      if #signals == 4 then
+        i[sigI.count] = {index=sigI.count,signal={}}
+      end
+    else
+      txSignals[#txSignals+1]={index=#txSignals+1,count=command,signal=commandsig}
+      txSignals[#txSignals+1]={index=#txSignals+1,count=sigI,signal={name="signal-I",type="virtual"}}
+      if i[sigI] then txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal=i[sigI].signal} end
+    end
   elseif command == 5 then -- Get print tiles
     local t = printStack.get_blueprint_tiles()
     --tiles: T=tile number, X,Y=position, tilesignal=1
@@ -99,7 +108,9 @@ local function onTickDigitizerDeployer(digitizer,deployer)
     --TODO: other entity-specific? or dedicated messages?
   elseif command == 7 then -- Get Print Name, binary encoded, LSB leftmost
     if write == 1 then
-      local signals=deployer.get_circuit_network(defines.wire_type.red).signals
+      local deplNet=deployer.get_circuit_network(defines.wire_type.red)
+                 or deployer.get_circuit_network(defines.wire_type.green)
+      local signals=deplNet.signals
       local str=""
       for i=0,30 do
         local endOfString=true
