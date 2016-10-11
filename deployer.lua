@@ -26,8 +26,8 @@ local function onTickDeployer(deployer)
   elseif deconstructArea == -1 then -- decon=-1 Deconstruct Area
     deployer.surface.deconstruct_area{
 	   area={
-	     {deployer.position.x+X-(H/2),deployer.position.y+Y-(W/2)},
-		  {deployer.position.x+X+(H/2),deployer.position.y+Y+(W/2)}
+	     {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
+		  {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)}
 		  },
 		force=deployer.force}
     deployer.cancel_deconstruction(deployer.force) -- Don't deconstruct myself in an area order
@@ -36,8 +36,8 @@ local function onTickDeployer(deployer)
   elseif deconstructArea == 1 then -- decon=1 Cancel Area
     deployer.surface.cancel_deconstruct_area{
 	   area={
-	     {deployer.position.x+X-(H/2),deployer.position.y+Y-(W/2)},
-		  {deployer.position.x+X+(H/2),deployer.position.y+Y+(W/2)}
+       {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
+		  {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)}
 		  },
 		force=deployer.force}
   end
