@@ -1,3 +1,5 @@
+local crc32 = require('crc32')
+
 function get_signal_value(entity,signal)
 	local behavior = entity.get_control_behavior()
 	if behavior == nil then	return(0)	end
@@ -81,7 +83,7 @@ function charsig(c)
 	if charmap[c] then
 		return charmap[c]
 	else
-		return 'signal-blue'
+		return nil
 	end
 end
 
@@ -109,6 +111,28 @@ function sigchar(c)
 end
 
 
+local function recipe_id(recipe)
+  local id = crc32.Hash(recipe)
+  if id > 2147483647 then
+    id = id - 4294967295
+  end
+  return id
+end
+
+local function reindex_recipes()
+  local recipemap={}
+
+  for recipe,_ in pairs(game.forces['player'].recipes) do
+    local id = recipe_id(recipe)
+    recipemap[recipe] = id
+    recipemap[id] = recipe
+  end
+
+  game.write_file('recipemap.txt',serpent.block(recipemap,{comment=false}))
+  global.recipemap = recipemap
+end
+
+
 local scripts=
 {
 printer = require("printer"),
@@ -127,3 +151,16 @@ end
 script.on_event(defines.events.on_tick, onEvent)
 script.on_event(defines.events.on_built_entity, onEvent)
 script.on_event(defines.events.on_robot_built_entity, onEvent)
+
+
+script.on_init(function()
+  -- Index recipes for new install
+  reindex_recipes()
+end
+)
+
+script.on_configuration_changed(function(data)
+  -- when any mods change, reindex recipes
+  reindex_recipes()
+end
+)

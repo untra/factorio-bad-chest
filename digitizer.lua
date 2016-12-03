@@ -84,28 +84,47 @@ local function onTickDigitizerDeployer(digitizer,deployer)
     end
   elseif command == 5 then -- Get print tiles
     local t = printStack.get_blueprint_tiles()
-    --tiles: T=tile number, X,Y=position, tilesignal=1
-    local sigT = get_signal_value(deployer,{name="signal-T",type="virtual"})
-    txSignals[#txSignals+1]={index=#txSignals+1,count=command,signal=commandsig}
-    txSignals[#txSignals+1]={index=#txSignals+1,count=sigT,signal={name="signal-T",type="virtual"}}
-    for k,_ in pairs(game.tile_prototypes[t[sigT].name].items_to_place_this) do
-      txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal={name=k,type="item"}}
+    if t then
+      --tiles: T=tile number, X,Y=position, tilesignal=1
+      local sigT = get_signal_value(deployer,{name="signal-T",type="virtual"})
+      if sigT > 0 and sigT <= #t then
+        txSignals[#txSignals+1]={index=#txSignals+1,count=command,signal=commandsig}
+        txSignals[#txSignals+1]={index=#txSignals+1,count=sigT,signal={name="signal-T",type="virtual"}}
+        for k,_ in pairs(game.tile_prototypes[t[sigT].name].items_to_place_this) do
+          txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal={name=k,type="item"}}
+        end
+        txSignals[#txSignals+1]={index=#txSignals+1,count=t[sigT].position.x,signal={name="signal-X",type="virtual"}}
+        txSignals[#txSignals+1]={index=#txSignals+1,count=t[sigT].position.y,signal={name="signal-Y",type="virtual"}}
+      end
     end
-    txSignals[#txSignals+1]={index=#txSignals+1,count=t[sigT].position.x,signal={name="signal-X",type="virtual"}}
-    txSignals[#txSignals+1]={index=#txSignals+1,count=t[sigT].position.y,signal={name="signal-Y",type="virtual"}}
-
   elseif command == 6 then -- Get print entities
     local e = printStack.get_blueprint_entities()
-    --entities: E=tile number, X,Y=position, entitysignal=1, R=hasrecipe, C=#connections, F=#filters, modules as count, ???
     local sigE = get_signal_value(deployer,{name="signal-E",type="virtual"})
-    txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal={name="signal-E",type="virtual"}}
-    for k,_ in pairs(game.entity_prototypes[e[sigE].name].items_to_place_this) do
-      txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal={name=k,type="item"}}
+    local bpent = e[sigE]
+    if write == 1 then
+
+    else
+
+      --entities: E=entity number, X,Y=position, entitysignal=1, R=recipe, C=#connections, F=#filters, modules as count, ???
+      if sigE > 0 and sigE <= #e then
+        txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal={name="signal-E",type="virtual"}}
+        for k,_ in pairs(game.entity_prototypes[e[sigE].name].items_to_place_this) do
+          txSignals[#txSignals+1]={index=#txSignals+1,count=1,signal={name=k,type="item"}}
+        end
+        txSignals[#txSignals+1]={index=#txSignals+1,count=bpent.position.x,signal={name="signal-X",type="virtual"}}
+        txSignals[#txSignals+1]={index=#txSignals+1,count=bpent.position.y,signal={name="signal-Y",type="virtual"}}
+
+        if bpent.direction then
+          txSignals[#txSignals+1]={index=#txSignals+1,count=bpent.direction, signal={name="signal-D",type="virtual"}}
+        end
+
+        if bpent.recipe then
+          txSignals[#txSignals+1]={index=#txSignals+1,count=global.recipemap[bpent.recipe] or 0, signal={name="signal-R",type="virtual"}}
+        end
+
+        --TODO: other entity-specific? or dedicated messages?
+      end
     end
-    txSignals[#txSignals+1]={index=#txSignals+1,count=e[sigE].position.x,signal={name="signal-X",type="virtual"}}
-    txSignals[#txSignals+1]={index=#txSignals+1,count=e[sigE].position.y,signal={name="signal-Y",type="virtual"}}
-    txSignals[#txSignals+1]={index=#txSignals+1,count=e[sigE].direction, signal={name="signal-D",type="virtual"}}
-    --TODO: other entity-specific? or dedicated messages?
   elseif command == 7 then -- Get Print Name, binary encoded, LSB leftmost
     if write == 1 then
       local deplNet=deployer.get_circuit_network(defines.wire_type.red)
@@ -146,7 +165,8 @@ local function onTickDigitizerDeployer(digitizer,deployer)
     end
   end
 
-  digitizer.get_or_create_control_behavior().parameters={parameters = txSignals}
+  --game.print(serpent.block(txSignals))
+  digitizer.get_or_create_control_behavior().parameters={enabled=true, parameters = txSignals}
 end
 
 
