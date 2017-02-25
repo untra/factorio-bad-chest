@@ -48,21 +48,21 @@ local function onTickDeployer(deployer)
 
     if deconstructArea == -1 then -- decon=-1 Deconstruct Area
       deployer.surface.deconstruct_area{
-  	   area={
-  	     {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
-  		  {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)}
-  		  },
-  		force=deployer.force}
+       area={
+         {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
+        {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)}
+        },
+      force=deployer.force}
       deployer.cancel_deconstruction(deployer.force) -- Don't deconstruct myself in an area order
     elseif deconstructArea == -2 then -- decon=-2 Deconstruct Self
       deployer.order_deconstruction(deployer.force)
     elseif deconstructArea == 1 then -- decon=1 Cancel Area
       deployer.surface.cancel_deconstruct_area{
-  	   area={
+       area={
          {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
-  		  {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)}
-  		  },
-  		force=deployer.force}
+        {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)}
+        },
+      force=deployer.force}
     end
   end
 end
@@ -72,9 +72,9 @@ local function onTickDeployers(event)
     for _,deployer in pairs(global.deployers) do
       if deployer.valid and deployer.name == "blueprint-deployer" then
         onTickDeployer(deployer)
-  		else
+      else
         global.deployers[_]=nil
-  		end
+      end
     end
   end
 end
