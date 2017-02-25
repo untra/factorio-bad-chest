@@ -1,23 +1,65 @@
 local crc32 = require('crc32')
 
-function get_signal_value(entity,signal)
-	local behavior = entity.get_control_behavior()
-	if behavior == nil then	return(0)	end
+-- cache the circuit networks to speed up performance
+function update_net_cache(ent)
+  if not net_cache then
+    net_cache = {}
+  end
 
+  local ent_cache = net_cache[ent.unit_number]
+  if not ent_cache then
+    ent_cache = {last_update=-1}
+    net_cache[ent.unit_number] = ent_cache
+  end
+
+  -- get the circuit networks at most once per tick per entity
+  if game.tick > ent_cache.last_update then
+
+    if not ent_cache.red_network or not ent_cache.red_network.valid then
+      ent_cache.red_network = ent.get_circuit_network(defines.wire_type.red)
+    end
+
+    if not ent_cache.green_network or not ent_cache.green_network.valid then
+      ent_cache.green_network = ent.get_circuit_network(defines.wire_type.green)
+    end
+
+    ent_cache.last_update = game.tick
+  end
+  return ent_cache;
+end
+
+-- Return integer value for given Signal: {type=, name=}
+function get_signal_value(ent,signal)
 	if signal == nil or signal.name == nil then return(0)	end
+  local ent_cache = update_net_cache(ent)
 
-	local redval,greenval=0,0
+  local signal_val = 0
 
-	local rednetwork = entity.get_circuit_network(defines.wire_type.red)
-	if rednetwork then
-	  redval = rednetwork.get_signal(signal)
+	if ent_cache.red_network then
+	  signal_val = signal_val + ent_cache.red_network.get_signal(signal)
 	end
 
-	local greennetwork = entity.get_circuit_network(defines.wire_type.green)
-	if greennetwork then
-	  greenval = greennetwork.get_signal(signal)
-	end
-	return(redval + greenval)
+  if ent_cache.green_network then
+    signal_val = signal_val + ent_cache.green_network.get_signal(signal)
+  end
+
+  return signal_val;
+end
+
+-- Return array of signal groups. Each signal group is an array of Signal: {signal={type=, name=}, count=}
+function get_all_signals(ent)
+  local ent_cache = update_net_cache(ent)
+
+  local signal_groups = {}
+  if ent_cache.red_network then
+    signal_groups[#signal_groups+1] = ent_cache.red_network.signals
+  end
+
+  if ent_cache.green_network then
+    signal_groups[#signal_groups+1] = ent_cache.green_network.signals
+  end
+
+  return signal_groups
 end
 
 function findEntityInBlueprint(bp,entityName)
