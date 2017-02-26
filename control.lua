@@ -43,6 +43,10 @@ function get_signal_value(ent,signal)
     signal_val = signal_val + ent_cache.green_network.get_signal(signal)
   end
 
+  -- correctly handle under/overflow, thanks to DaveMcW  
+  if signal_val > 2147483647 then signal_val = signal_val - 4294967296 end
+  if signal_val < -2147483648 then signal_val = signal_val + 4294967296 end
+
   return signal_val;
 end
 
