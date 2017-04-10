@@ -43,7 +43,7 @@ function get_signal_value(ent,signal)
     signal_val = signal_val + ent_cache.green_network.get_signal(signal)
   end
 
-  -- correctly handle under/overflow, thanks to DaveMcW  
+  -- correctly handle under/overflow, thanks to DaveMcW
   if signal_val > 2147483647 then signal_val = signal_val - 4294967296 end
   if signal_val < -2147483648 then signal_val = signal_val + 4294967296 end
 
@@ -68,6 +68,7 @@ end
 
 function findEntityInBlueprint(bp,entityName)
   local bpEntities = bp.get_blueprint_entities()
+  if not bpEntities then return nil end
   local e = nil
   for _,bpEntity in pairs(bpEntities) do
     if bpEntity.name == entityName then
