@@ -1,10 +1,10 @@
 {
   "name":"recursive-blueprints",
   "author":"Doc, justarandomgeek",
-  "version":"0.2.7",
+  "version":"0.15.7",
   "title":"Recursive Blueprints",
   "homepage":"",
   "description":"Recursive Blueprint deployment system",
   "dependencies": ["base"],
-  "factorio_version": "0.14"
+  "factorio_version": "0.15"
 }
