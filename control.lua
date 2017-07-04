@@ -1,4 +1,9 @@
-local crc32 = require('crc32')
+-- correctly handle under/overflow
+function overflow_int32(n)
+  if n > 2147483647 then n = n - 4294967296 end
+  if n < -2147483648 then n = n + 4294967296 end
+  return n
+end
 
 -- cache the circuit networks to speed up performance
 function update_net_cache(ent)
@@ -43,11 +48,7 @@ function get_signal_value(ent,signal)
     signal_val = signal_val + ent_cache.green_network.get_signal(signal)
   end
 
-  -- correctly handle under/overflow, thanks to DaveMcW
-  if signal_val > 2147483647 then signal_val = signal_val - 4294967296 end
-  if signal_val < -2147483648 then signal_val = signal_val + 4294967296 end
-
-  return signal_val;
+  return overflow_int32(signal_val);
 end
 
 -- Return array of signal groups. Each signal group is an array of Signal: {signal={type=, name=}, count=}
@@ -69,14 +70,11 @@ end
 function findEntityInBlueprint(bp,entityName)
   local bpEntities = bp.get_blueprint_entities()
   if not bpEntities then return nil end
-  local e = nil
   for _,bpEntity in pairs(bpEntities) do
     if bpEntity.name == entityName then
-      e = bpEntity
-      break
+      return(bpEntity)
     end
   end
-  return(e)
 end
 
 function deployBlueprint(bp,deployer,offsetpos)
@@ -97,8 +95,8 @@ function deployBlueprint(bp,deployer,offsetpos)
 
   local deploypos = {
     x = deployer.position.x + offsetpos.x - anchorPosition.x,
-   y = deployer.position.y + offsetpos.y - anchorPosition.y
-   }
+    y = deployer.position.y + offsetpos.y - anchorPosition.y
+  }
 
   bp.build_blueprint{
     surface=deployer.surface,
@@ -108,106 +106,101 @@ function deployBlueprint(bp,deployer,offsetpos)
   }
 end
 
-function copyBlueprint(inStack,outStack)
-  if not inStack.is_blueprint_setup() then return end
-  outStack.set_blueprint_entities(inStack.get_blueprint_entities())
-  outStack.set_blueprint_tiles(inStack.get_blueprint_tiles())
-  outStack.blueprint_icons = inStack.blueprint_icons
-  if inStack.label then outStack.label = inStack.label end
-end
+local function onTickDeployer(deployer)
+  local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
+  -- deployment-related actions
+  if deployPrint > 0 then
+    -- Check chest inventory for blueprint
+    local deployerItemStack = deployer.get_inventory(defines.inventory.chest)[1]
+    if not deployerItemStack.valid_for_read then return end
 
-function charsig(c)
-  local charmap={
-    ["0"]='signal-0',["1"]='signal-1',["2"]='signal-2',["3"]='signal-3',["4"]='signal-4',
-    ["5"]='signal-5',["6"]='signal-6',["7"]='signal-7',["8"]='signal-8',["9"]='signal-9',
-    ["A"]='signal-A',["B"]='signal-B',["C"]='signal-C',["D"]='signal-D',["E"]='signal-E',
-    ["F"]='signal-F',["G"]='signal-G',["H"]='signal-H',["I"]='signal-I',["J"]='signal-J',
-    ["K"]='signal-K',["L"]='signal-L',["M"]='signal-M',["N"]='signal-N',["O"]='signal-O',
-    ["P"]='signal-P',["Q"]='signal-Q',["R"]='signal-R',["S"]='signal-S',["T"]='signal-T',
-    ["U"]='signal-U',["V"]='signal-V',["W"]='signal-W',["X"]='signal-X',["Y"]='signal-Y',
-    ["Z"]='signal-Z'
-  }
-  if charmap[c] then
-    return charmap[c]
-  else
-    return nil
+    local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
+    local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
+
+    if deployerItemStack.name == "blueprint" then
+      deployBlueprint(deployerItemStack,deployer,{x=X,y=Y})
+    elseif deployerItemStack.name == "blueprint-book" then
+      local bookInv = deployerItemStack.get_inventory(defines.inventory.item_main)
+      if deployPrint > bookInv.get_item_count() then
+        deployPrint = deployerItemStack.active_index
+      end
+      deployBlueprint(bookInv[deployPrint], deployer, {x=X,y=Y})
+    end
+    return
   end
-end
+  
+  local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
+  -- deconstruction-related actions
+  if deconstructArea == -2 then -- decon=-2 Deconstruct Self
+    deployer.order_deconstruction(deployer.force)
+  elseif deconstructArea == -1 or deconstructArea == 1 then
+    local signal_groups = get_all_signals(deployer)
+    local X,Y,W,H = 0,0,0,0
+    for _,sig_group in pairs(signal_groups) do
+      for _,sig in pairs(sig_group) do
+        if sig.signal.name=="signal-X" then
+          X = X + sig.count
+        elseif sig.signal.name=="signal-H" then
+          H = H + sig.count
+        elseif sig.signal.name=="signal-W" then
+          W = W + sig.count
+        elseif sig.signal.name=="signal-Y" then
+          Y = Y + sig.count
+        end
+      end
+    end
+    X = overflow_int32(X)
+    Y = overflow_int32(Y)
+    W = overflow_int32(W)
+    H = overflow_int32(H)
 
-function sigchar(c)
-  local charmap={
-    ['signal-0']='0',['signal-1']='1',['signal-2']='2',['signal-3']='3',['signal-4']='4',
-    ['signal-5']='5',['signal-6']='6',['signal-7']='7',['signal-8']='8',['signal-9']='9',
-    ['signal-A']='A',['signal-B']='B',['signal-C']='C',['signal-D']='D',
-    ['signal-E']='E',['signal-F']='F',['signal-G']='G',['signal-H']='H',
-    ['signal-I']='I',['signal-J']='J',['signal-K']='K',['signal-L']='L',
-    ['signal-M']='M',['signal-N']='N',['signal-O']='O',['signal-P']='P',
-    ['signal-Q']='Q',['signal-R']='R',['signal-S']='S',['signal-T']='T',
-    ['signal-U']='U',['signal-V']='V',['signal-W']='W',['signal-X']='X',
-    ['signal-Y']='Y',['signal-Z']='Z',
+    if W < 1 then W = 1 end
+    if H < 1 then H = 1 end
+    
+    -- align to grid
+    if W % 2 == 0 then X = X + 0.5 end
+    if H % 2 == 0 then Y = Y + 0.5 end
 
-    ['signal-blue']='',
-    ['signal-white']='',
+    -- subtract 1 pixel from edges to avoid tile overlap
+    W = W - 1/128
+    H = H - 1/128
+    
+    local area = {
+      {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
+      {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)},
+    }
 
-  }
-  if charmap[c] then
-    return charmap[c]
-  else
-    return ' '
-  end
-end
-
-
-local function recipe_id(recipe)
-  local id = crc32.Hash(recipe)
-  if id > 2147483647 then
-    id = id - 4294967295
-  end
-  return id
-end
-
-local function reindex_recipes()
-  local recipemap={}
-
-  for recipe,_ in pairs(game.forces['player'].recipes) do
-    local id = recipe_id(recipe)
-    recipemap[recipe] = id
-    recipemap[id] = recipe
-  end
-
-  game.write_file('recipemap.txt',serpent.block(recipemap,{comment=false}))
-  global.recipemap = recipemap
-end
-
-
-local scripts=
-{
-printer = require("printer"),
-deployer = require("deployer"),
-digitizer = require("digitizer"),
-}
-
-local function onEvent(event)
-  for _,s in pairs(scripts) do
-    if s[event.name] then
-      s[event.name](event)
+    if deconstructArea == -1 then -- decon=-1 Deconstruct Area
+      deployer.surface.deconstruct_area{area=area, force=deployer.force}
+      deployer.cancel_deconstruction(deployer.force) -- Don't deconstruct myself in an area order
+    elseif deconstructArea == 1 then -- decon=1 Cancel Area
+      deployer.surface.cancel_deconstruct_area{area=area, force=deployer.force}
     end
   end
 end
 
-script.on_event(defines.events.on_tick, onEvent)
-script.on_event(defines.events.on_built_entity, onEvent)
-script.on_event(defines.events.on_robot_built_entity, onEvent)
-
-
-script.on_init(function()
-  -- Index recipes for new install
-  reindex_recipes()
+local function onTickDeployers(event)
+  if global.deployers then
+    for k,deployer in pairs(global.deployers) do
+      if deployer.valid and deployer.name == "blueprint-deployer" then
+        onTickDeployer(deployer)
+      else
+        global.deployers[k]=nil
+      end
+    end
+  end
 end
-)
 
-script.on_configuration_changed(function(data)
-  -- when any mods change, reindex recipes
-  reindex_recipes()
+local function onBuiltDeployer(event)
+  local ent = event.created_entity
+  if not ent or not ent.valid then return end
+  if ent.name == "blueprint-deployer" then 
+    if not global.deployers then global.deployers={} end
+    table.insert(global.deployers,ent)
+  end
 end
-)
+
+script.on_event(defines.events.on_tick, onTickDeployers)
+script.on_event(defines.events.on_built_entity, onBuiltDeployer)
+script.on_event(defines.events.on_robot_built_entity, onBuiltDeployer)
+

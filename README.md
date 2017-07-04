@@ -1,8 +1,20 @@
 Adds a Blueprint Deployer chest which can be connected to the circuit network to build a self-expanding factory.
 
-The Blueprint Deployer recognizes the following signals:
+Example commands:
 
-* X,Y: Command Position, relative to itself
-* deconstruction-planner=-1, W=width, H=height: Deconstruct area. Deployer will order deconstruction of the designated area centered around the command position. Deployer will not deconstruct itself with this command, even if it is in the covered area.
-* deconstruction-planner=-2: Deconstruct self. Deployer will order it's own deconstruction.
-* construction-robot=n: Deploy print. If the chest is holding a single blueprint, it will be deployed at the command position. If the chest is holding a blueprint book, the nth print from it will be deployed. To select the "active" print in a book, use a value greater than the main inventory size. The blueprint will be aligned such that the anchor position (search order: first wooden chest, first deployer, {0,0}) is on the command position.
+![Construction robot = 1]([http://davemcw.com/factorio/images/construction-robot_1.jpg) Deploy blueprint. Construction robot signal can be any value ≥ 1.
+
+![Construction robot = 2](http://davemcw.com/factorio/images/construction-robot_2.jpg) Deploy blueprint from book. Construction robot signal selects which blueprint to use.  If it is greater than the size of the book, the active blueprint is used instead.
+
+![Deconstruction planner = -1](http://davemcw.com/factorio/images/deconstruction-planner_-1.jpg) Deconstruct area. W = width, H = height.  The deployer chest will never deconstruct itself with this command.
+
+![Deconstruction planner = 1](http://davemcw.com/factorio/images/deconstruction-planner_1.jpg) Cancel deconstruction in area.
+
+![Deconstruction planner = -2](http://davemcw.com/factorio/images/deconstruction-planner_-2.jpg) Deconstruct the deployer chest.
+
+X and Y signals shift the position of the construction/deconstruction order.
+
+Blueprints are centered on:
+1. The first wooden chest in the blueprint
+2. The first deployer chest in the blueprint
+3. The center of the blueprint

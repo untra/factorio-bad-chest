@@ -1,5 +1,4 @@
-data:extend(
-{
+data:extend{
   {
     type = "technology",
     name = "recursive-blueprints",
@@ -8,14 +7,6 @@ data:extend(
     effects =
     {
       {type = "unlock-recipe", recipe = "blueprint-deployer" },
-      {type = "unlock-recipe", recipe = "blueprint-printer" },
-      {type = "unlock-recipe", recipe = "blueprint-digitizer" },
-      {type = "unlock-recipe", recipe = "clone-blueprint" },
-      {type = "unlock-recipe", recipe = "wipe-blueprint" },
-      {type = "unlock-recipe", recipe = "insert-blueprint" },
-      {type = "unlock-recipe", recipe = "extract-blueprint" },
-
-
     },
     prerequisites = {"logistic-system"},
     unit = {
@@ -30,4 +21,3 @@ data:extend(
     order = "c-k-d",
   },
 }
-)
