@@ -2,10 +2,10 @@ Adds a Blueprint Deployer chest which can be connected to the circuit network to
 
 Example commands:
 
-![Construction robot = 1](http://davemcw.com/factorio/images/construction-robot_1.jpg)
+![Construction robot = 1](http://davemcw.com/factorio/images/construction-robot_1.jpg?)
 Deploy blueprint. Construction robot signal can be any value ≥ 1.
 
-![Construction robot = 2](http://davemcw.com/factorio/images/construction-robot_2.jpg)
+![Construction robot = 2](http://davemcw.com/factorio/images/construction-robot_2.jpg?)
 Deploy blueprint from book. Construction robot signal selects which blueprint to use.  If it is greater than the size of the book, the active blueprint is used instead.
 
 ![Deconstruction planner = -1](http://davemcw.com/factorio/images/deconstruction-planner_-1.jpg)
