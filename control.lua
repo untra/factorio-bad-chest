@@ -77,7 +77,7 @@ function findEntityInBlueprint(bp,entityName)
   end
 end
 
-function deployBlueprint(bp,deployer,offsetpos)
+function deployBlueprint(bp, deployer, offsetpos, R)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
@@ -88,21 +88,39 @@ function deployBlueprint(bp,deployer,offsetpos)
     anchorEntity = findEntityInBlueprint(bp,"blueprint-deployer")
   end
 
-  local anchorPosition = {x=0,y=0}
+  local anchorX = 0
+  local anchorY = 0
   if anchorEntity then
-    anchorPosition = anchorEntity.position
+    anchorX = anchorEntity.position.x
+    anchorY = anchorEntity.position.y
   end
 
+  -- Rotate
+  local direction = defines.direction.north
+  if (R == 1) then
+    direction = defines.direction.east
+    anchorX, anchorY = -anchorY, anchorX
+  end
+  if (R == 2) then
+    direction = defines.direction.south
+    anchorX, anchorY = -anchorX, -anchorY
+  end
+  if (R == 3) then
+    direction = defines.direction.west
+    anchorX, anchorY = anchorY, -anchorX
+  end
+  
   local deploypos = {
-    x = deployer.position.x + offsetpos.x - anchorPosition.x,
-    y = deployer.position.y + offsetpos.y - anchorPosition.y
+    x = deployer.position.x + offsetpos.x - anchorX,
+    y = deployer.position.y + offsetpos.y - anchorY
   }
 
   bp.build_blueprint{
     surface=deployer.surface,
     force=deployer.force,
     position=deploypos,
-    force_build=true
+    force_build=true,
+    direction=direction
   }
 end
 
@@ -114,17 +132,18 @@ local function onTickDeployer(deployer)
     local deployerItemStack = deployer.get_inventory(defines.inventory.chest)[1]
     if not deployerItemStack.valid_for_read then return end
 
+    local R = get_signal_value(deployer,{name="signal-R",type="virtual"})
     local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
     local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
-
+    
     if deployerItemStack.name == "blueprint" then
-      deployBlueprint(deployerItemStack,deployer,{x=X,y=Y})
+      deployBlueprint(deployerItemStack, deployer, {x=X,y=Y}, R)
     elseif deployerItemStack.name == "blueprint-book" then
       local bookInv = deployerItemStack.get_inventory(defines.inventory.item_main)
       if deployPrint > bookInv.get_item_count() then
         deployPrint = deployerItemStack.active_index
       end
-      deployBlueprint(bookInv[deployPrint], deployer, {x=X,y=Y})
+      deployBlueprint(bookInv[deployPrint], deployer, {x=X,y=Y}, R)
     end
     return
   end
