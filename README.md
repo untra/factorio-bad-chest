@@ -36,6 +36,4 @@ X and Y signals shift the position of the construction/deconstruction order.
 
 R signal rotates the blueprint. R = 1 = 90° clockwise, R = 2 = 180°, R = 3 = 90° counterclockwise.
 
-branch 3
-
 Blueprints are centered on: 1) The first wooden chest in the blueprint, 2) The first deployer chest in the blueprint, 3) The center of the blueprint.
