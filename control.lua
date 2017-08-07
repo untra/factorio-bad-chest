@@ -1,11 +1,11 @@
--- correctly handle under/overflow
+-- Correctly handle circuit network under/overflow
 function overflow_int32(n)
   if n > 2147483647 then n = n - 4294967296 end
   if n < -2147483648 then n = n + 4294967296 end
   return n
 end
 
--- cache the circuit networks to speed up performance
+-- Cache the circuit networks to speed up performance
 function update_net_cache(ent)
   if not net_cache then
     net_cache = {}
@@ -17,7 +17,7 @@ function update_net_cache(ent)
     net_cache[ent.unit_number] = ent_cache
   end
 
-  -- get the circuit networks at most once per tick per entity
+  -- Get the circuit networks at most once per tick per entity
   if game.tick > ent_cache.last_update then
 
     if not ent_cache.red_network or not ent_cache.red_network.valid then
@@ -67,29 +67,25 @@ function get_all_signals(ent)
   return signal_groups
 end
 
-function findEntityInBlueprint(bp,entityName)
-  local bpEntities = bp.get_blueprint_entities()
-  if not bpEntities then return nil end
-  for _,bpEntity in pairs(bpEntities) do
-    if bpEntity.name == entityName then
-      return(bpEntity)
-    end
-  end
-end
-
 function deployBlueprint(bp, deployer, offsetpos, R)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
-  local bpEntities = bp.get_blueprint_entities()
-  local anchorEntity = nil
-  anchorEntity = findEntityInBlueprint(bp,"wooden-chest")
-  if not anchorEntity then
-    anchorEntity = findEntityInBlueprint(bp,"blueprint-deployer")
-  end
 
-  local anchorX = 0
-  local anchorY = 0
+  -- Find anchor point
+  local anchorEntity = nil
+  local bpEntities = bp.get_blueprint_entities()
+  if bpEntities then
+    for _,bpEntity in pairs(bpEntities) do
+      if bpEntity.name == "wooden-chest" then
+        anchorEntity = bpEntity
+        break
+      elseif bpEntity.name == "blueprint-deployer" and not anchorEntity then
+        anchorEntity = bpEntity
+      end
+    end
+  end
+  local anchorX,anchorY = 0,0
   if anchorEntity then
     anchorX = anchorEntity.position.x
     anchorY = anchorEntity.position.y
@@ -100,12 +96,10 @@ function deployBlueprint(bp, deployer, offsetpos, R)
   if (R == 1) then
     direction = defines.direction.east
     anchorX, anchorY = -anchorY, anchorX
-  end
-  if (R == 2) then
+  elseif (R == 2) then
     direction = defines.direction.south
     anchorX, anchorY = -anchorX, -anchorY
-  end
-  if (R == 3) then
+  elseif (R == 3) then
     direction = defines.direction.west
     anchorX, anchorY = anchorY, -anchorX
   end
@@ -176,11 +170,11 @@ local function onTickDeployer(deployer)
     if W < 1 then W = 1 end
     if H < 1 then H = 1 end
     
-    -- align to grid
+    -- Align to grid
     if W % 2 == 0 then X = X + 0.5 end
     if H % 2 == 0 then Y = Y + 0.5 end
 
-    -- subtract 1 pixel from edges to avoid tile overlap
+    -- Subtract 1 pixel from edges to avoid tile overlap
     W = W - 1/128
     H = H - 1/128
     
