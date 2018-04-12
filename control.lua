@@ -67,7 +67,7 @@ function get_all_signals(ent)
   return signal_groups
 end
 
-function deployBlueprint(bp, deployer, offsetpos, R)
+function deployBlueprint(bp, deployer)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
@@ -91,6 +91,10 @@ function deployBlueprint(bp, deployer, offsetpos, R)
     anchorY = anchorEntity.position.y
   end
 
+  local R = get_signal_value(deployer,{name="signal-R",type="virtual"})
+  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
+  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
+
   -- Rotate
   local direction = defines.direction.north
   if (R == 1) then
@@ -103,16 +107,16 @@ function deployBlueprint(bp, deployer, offsetpos, R)
     direction = defines.direction.west
     anchorX, anchorY = anchorY, -anchorX
   end
-  
-  local deploypos = {
-    x = deployer.position.x + offsetpos.x - anchorX,
-    y = deployer.position.y + offsetpos.y - anchorY
+
+  local position = {
+    x = deployer.position.x + X - anchorX,
+    y = deployer.position.y + Y - anchorY
   }
 
   bp.build_blueprint{
     surface=deployer.surface,
     force=deployer.force,
-    position=deploypos,
+    position=position,
     force_build=true,
     direction=direction
   }
@@ -120,31 +124,26 @@ end
 
 local function onTickDeployer(deployer)
   local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
-  -- deployment-related actions
   if deployPrint > 0 then
     -- Check chest inventory for blueprint
     local deployerItemStack = deployer.get_inventory(defines.inventory.chest)[1]
     if not deployerItemStack.valid_for_read then return end
 
-    local R = get_signal_value(deployer,{name="signal-R",type="virtual"})
-    local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
-    local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
-    
     if deployerItemStack.name == "blueprint" then
-      deployBlueprint(deployerItemStack, deployer, {x=X,y=Y}, R)
+      deployBlueprint(deployerItemStack, deployer)
     elseif deployerItemStack.name == "blueprint-book" then
       local bookInv = deployerItemStack.get_inventory(defines.inventory.item_main)
       if deployPrint > bookInv.get_item_count() then
         deployPrint = deployerItemStack.active_index
       end
-      deployBlueprint(bookInv[deployPrint], deployer, {x=X,y=Y}, R)
+      deployBlueprint(bookInv[deployPrint], deployer)
     end
     return
   end
-  
+
   local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
-  -- deconstruction-related actions
-  if deconstructArea == -2 then -- decon=-2 Deconstruct Self
+  if deconstructArea == -2 then
+    -- Deconstruct Self
     deployer.order_deconstruction(deployer.force)
   elseif deconstructArea == -1 or deconstructArea == 1 then
     local signal_groups = get_all_signals(deployer)
@@ -169,7 +168,7 @@ local function onTickDeployer(deployer)
 
     if W < 1 then W = 1 end
     if H < 1 then H = 1 end
-    
+
     -- Align to grid
     if W % 2 == 0 then X = X + 0.5 end
     if H % 2 == 0 then Y = Y + 0.5 end
@@ -177,17 +176,23 @@ local function onTickDeployer(deployer)
     -- Subtract 1 pixel from edges to avoid tile overlap
     W = W - 1/128
     H = H - 1/128
-    
+
     local area = {
       {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
       {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)},
     }
 
-    if deconstructArea == -1 then -- decon=-1 Deconstruct Area
-      deployer.surface.deconstruct_area{area=area, force=deployer.force}
-      deployer.cancel_deconstruction(deployer.force) -- Don't deconstruct myself in an area order
-    elseif deconstructArea == 1 then -- decon=1 Cancel Area
+    if deconstructArea == 1 then
+      -- Cancel Area
       deployer.surface.cancel_deconstruct_area{area=area, force=deployer.force}
+    elseif deconstructArea == -1 then
+      -- Deconstruct Area
+      local deconstructSelf = deployer.to_be_deconstructed(deployer.force)
+      deployer.surface.deconstruct_area{area=area, force=deployer.force}
+      if not deconstructSelf then
+         -- Don't deconstruct myself in an area order
+        deployer.cancel_deconstruction(deployer.force)
+      end
     end
   end
 end
@@ -207,7 +212,7 @@ end
 local function onBuiltDeployer(event)
   local ent = event.created_entity
   if not ent or not ent.valid then return end
-  if ent.name == "blueprint-deployer" then 
+  if ent.name == "blueprint-deployer" then
     if not global.deployers then global.deployers={} end
     table.insert(global.deployers,ent)
   end
@@ -216,4 +221,3 @@ end
 script.on_event(defines.events.on_tick, onTickDeployers)
 script.on_event(defines.events.on_built_entity, onBuiltDeployer)
 script.on_event(defines.events.on_robot_built_entity, onBuiltDeployer)
-
