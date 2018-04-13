@@ -122,7 +122,88 @@ function deployBlueprint(bp, deployer)
   }
 end
 
-local function onTickDeployer(deployer)
+function copy_stack(deployer, itemName)
+  local stack = find_stack_in_network(deployer, itemName)
+  if not stack then return end
+  deployer.get_inventory(defines.inventory.chest)[1].set_stack(stack)
+end
+
+function find_stack_in_container(entity, itemName)
+  if entity.type == "container" or entity.type == "logistic-container" then
+    local inventory = entity.get_inventory(defines.inventory.chest)
+    for i = 1, #inventory do
+      if inventory[i].valid_for_read and inventory[i].name == itemName then
+        return inventory[i]
+      end
+    end
+  elseif entity.type == "inserter" then
+    local behavior = entity.get_control_behavior()
+    if not behavior then return end
+    if not behavior.circuit_read_hand_contents then return end
+    if entity.held_stack.valid_for_read and entity.held_stack.name == itemName then
+      return entity.held_stack
+    end
+  end
+end
+
+function con_hash(entity, connector, wire)
+  return entity.unit_number .. "-" .. connector .. "-" .. wire
+end
+
+function find_stack_in_network(deployer, itemName)
+  -- Breadth-first search for the item in the network
+  -- If there are multiple items, returns the closest one (least wire hops)
+  local present = {
+    [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.red)] =
+    {
+      entity = deployer,
+      connector = defines.circuit_connector_id.container,
+      wire = defines.wire_type.red,
+    },
+    [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.green)] =
+    {
+      entity = deployer,
+      connector = defines.circuit_connector_id.container,
+      wire = defines.wire_type.green,
+    }
+  }
+  local future = {}
+  local past = {}
+  while next(present) do
+    for k,p in pairs(present) do
+      -- Search inside the entity
+      if p.entity.type == "container"
+      or p.entity.type == "logistic-container"
+      or p.entity.type == "inserter" then
+        local item = find_stack_in_container(p.entity, itemName)
+        if item then return item end
+      end
+
+      -- Search connecting wires
+      for _,f in pairs(p.entity.circuit_connection_definitions) do
+        -- Wire color and connection points must match
+        if f.target_entity.unit_number
+        and f.wire == p.wire
+        and f.source_circuit_id == p.connector then
+          local hash = con_hash(f.target_entity, f.target_circuit_id, f.wire)
+          if not past[hash] and not present[hash] and not future[hash] then
+            -- Add entity for future searches
+            future[hash] = {
+              entity = f.target_entity,
+              connector = f.target_circuit_id,
+              wire = f.wire
+            }
+          end
+        end
+      end
+      past[k] = present[k]
+    end
+    present = future
+    future = {}
+  end
+end
+
+function onTickDeployer(deployer)
   local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
   if deployPrint > 0 then
     -- Check chest inventory for blueprint
@@ -145,6 +226,7 @@ local function onTickDeployer(deployer)
   if deconstructArea == -2 then
     -- Deconstruct Self
     deployer.order_deconstruction(deployer.force)
+    return
   elseif deconstructArea == -1 or deconstructArea == 1 then
     local signal_groups = get_all_signals(deployer)
     local X,Y,W,H = 0,0,0,0
@@ -194,10 +276,33 @@ local function onTickDeployer(deployer)
         deployer.cancel_deconstruction(deployer.force)
       end
     end
+    return
+  end
+
+  local copy = get_signal_value(deployer,{name="signal-C",type="virtual"})
+  if copy == 1 then
+    -- Copy blueprint
+    if not deployer.get_inventory(defines.inventory.chest).is_empty() then return end
+    if get_signal_value(deployer,{name="blueprint-book",type="item"}) >= 1 then
+      copy_stack(deployer, "blueprint-book")
+    end
+    if not deployer.get_inventory(defines.inventory.chest).is_empty() then return end
+    if get_signal_value(deployer,{name="blueprint",type="item"}) >= 1 then
+      copy_stack(deployer, "blueprint")
+    end
+    return
+  elseif copy == -1 then
+    -- Delete blueprint
+    local stack = deployer.get_inventory(defines.inventory.chest)[1]
+    if not stack.valid_for_read then return end
+    if stack.name == "blueprint" or stack.name == "blueprint-book" then
+      stack.clear()
+    end
+    return
   end
 end
 
-local function onTickDeployers(event)
+function onTickDeployers(event)
   if global.deployers then
     for k,deployer in pairs(global.deployers) do
       if deployer.valid and deployer.name == "blueprint-deployer" then
@@ -209,7 +314,7 @@ local function onTickDeployers(event)
   end
 end
 
-local function onBuiltDeployer(event)
+function onBuiltDeployer(event)
   local ent = event.created_entity
   if not ent or not ent.valid then return end
   if ent.name == "blueprint-deployer" then
