@@ -171,14 +171,6 @@ function find_stack_in_network(deployer, itemName)
   local past = {}
   while next(present) do
     for k,p in pairs(present) do
-      -- Search inside the entity
-      if p.entity.type == "container"
-      or p.entity.type == "logistic-container"
-      or p.entity.type == "inserter" then
-        local item = find_stack_in_container(p.entity, itemName)
-        if item then return item end
-      end
-
       -- Search connecting wires
       for _,f in pairs(p.entity.circuit_connection_definitions) do
         -- Wire color and connection points must match
@@ -187,7 +179,11 @@ function find_stack_in_network(deployer, itemName)
         and f.source_circuit_id == p.connector then
           local hash = con_hash(f.target_entity, f.target_circuit_id, f.wire)
           if not past[hash] and not present[hash] and not future[hash] then
-            -- Add entity for future searches
+            -- Search inside the entity
+            local stack = find_stack_in_container(f.target_entity, itemName)
+            if stack then return stack end
+
+            -- Add entity connections to future searches
             future[hash] = {
               entity = f.target_entity,
               connector = f.target_circuit_id,
@@ -196,7 +192,7 @@ function find_stack_in_network(deployer, itemName)
           end
         end
       end
-      past[k] = present[k]
+      past[k] = true
     end
     present = future
     future = {}
