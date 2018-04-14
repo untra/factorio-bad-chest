@@ -32,6 +32,18 @@ Deconstruct the deployer chest.
 
 ---
 
+![Signal C = 1](http://davemcw.com/factorio/images/signal-c1.jpg)
+
+Copy blueprint or blueprint book. The original blueprint must be in a chest (or inserter with read hand contents) on the same circuit network as the deployer chest.
+
+---
+
+![Signal C = -1](http://davemcw.com/factorio/images/signal-c-1.jpg)
+
+Delete blueprint or blueprint book.
+
+---
+
 X and Y signals shift the position of the construction/deconstruction order.
 
 R signal rotates the blueprint. R = 1 = 90° clockwise, R = 2 = 180°, R = 3 = 90° counterclockwise.
