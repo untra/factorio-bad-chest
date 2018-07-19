@@ -125,7 +125,7 @@ function deployBlueprint(bp, deployer)
     script.raise_event(defines.events.on_robot_built_entity, {
       created_entity = entity,
       stack = bp,
-      robot = {valid = false, type = "chest", name = "blueprint-deployer"},
+      robot = {valid = false, type = "container", name = "blueprint-deployer"},
     })
   end
 end
