@@ -110,16 +110,24 @@ function deployBlueprint(bp, deployer)
 
   local position = {
     x = deployer.position.x + X - anchorX,
-    y = deployer.position.y + Y - anchorY
+    y = deployer.position.y + Y - anchorY,
   }
 
-  bp.build_blueprint{
-    surface=deployer.surface,
-    force=deployer.force,
-    position=position,
-    force_build=true,
-    direction=direction
+  local result = bp.build_blueprint{
+    surface = deployer.surface,
+    force = deployer.force,
+    position = position,
+    direction = direction,
+    force_build = true,
   }
+
+  for _, entity in pairs(result) do
+    script.raise_event(defines.events.on_robot_built_entity, {
+      created_entity = entity,
+      stack = bp,
+      robot = {valid = false, type = "chest", name = "blueprint-deployer"},
+    })
+  end
 end
 
 function copy_stack(deployer, itemName)
