@@ -67,7 +67,7 @@ function get_all_signals(ent)
   return signal_groups
 end
 
-function deployBlueprint(bp, deployer)
+function deploy_blueprint(bp, deployer)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
@@ -207,21 +207,21 @@ function find_stack_in_network(deployer, itemName)
   end
 end
 
-function onTickDeployer(deployer)
+function on_tick_deployer(deployer)
   local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
   if deployPrint > 0 then
     -- Check chest inventory for blueprint
     local deployerItemStack = deployer.get_inventory(defines.inventory.chest)[1]
     if not deployerItemStack.valid_for_read then return end
 
-    if deployerItemStack.name == "blueprint" then
-      deployBlueprint(deployerItemStack, deployer)
-    elseif deployerItemStack.name == "blueprint-book" then
+    if deployerItemStack.is_blueprint then
+      deploy_blueprint(deployerItemStack, deployer)
+    elseif deployerItemStack.is_blueprint_book then
       local bookInv = deployerItemStack.get_inventory(defines.inventory.item_main)
       if deployPrint > bookInv.get_item_count() then
         deployPrint = deployerItemStack.active_index
       end
-      deployBlueprint(bookInv[deployPrint], deployer)
+      deploy_blueprint(bookInv[deployPrint], deployer)
     end
     return
   end
@@ -286,31 +286,29 @@ function onTickDeployer(deployer)
   local copy = get_signal_value(deployer,{name="signal-C",type="virtual"})
   if copy == 1 then
     -- Copy blueprint
-    if not deployer.get_inventory(defines.inventory.chest).is_empty() then return end
-    if get_signal_value(deployer,{name="blueprint-book",type="item"}) >= 1 then
-      copy_stack(deployer, "blueprint-book")
-    end
-    if not deployer.get_inventory(defines.inventory.chest).is_empty() then return end
-    if get_signal_value(deployer,{name="blueprint",type="item"}) >= 1 then
-      copy_stack(deployer, "blueprint")
+    for _,item in pairs(global.blueprint_signals) do
+      if not deployer.get_inventory(defines.inventory.chest).is_empty() then return end
+      if get_signal_value(deployer,{name=item,type="item"}) >= 1 then
+        copy_stack(deployer, item)
+      end
     end
     return
   elseif copy == -1 then
     -- Delete blueprint
     local stack = deployer.get_inventory(defines.inventory.chest)[1]
     if not stack.valid_for_read then return end
-    if stack.name == "blueprint" or stack.name == "blueprint-book" then
+    if stack.is_blueprint or stack.is_blueprint_book then
       stack.clear()
     end
     return
   end
 end
 
-function onTickDeployers(event)
+function on_tick(event)
   if global.deployers then
     for k,deployer in pairs(global.deployers) do
       if deployer.valid and deployer.name == "blueprint-deployer" then
-        onTickDeployer(deployer)
+        on_tick_deployer(deployer)
       else
         global.deployers[k]=nil
       end
@@ -318,15 +316,27 @@ function onTickDeployers(event)
   end
 end
 
-function onBuiltDeployer(event)
+function on_built(event)
   local ent = event.created_entity
   if not ent or not ent.valid then return end
   if ent.name == "blueprint-deployer" then
     if not global.deployers then global.deployers={} end
-    table.insert(global.deployers,ent)
+    table.insert(global.deployers, ent)
   end
 end
 
-script.on_event(defines.events.on_tick, onTickDeployers)
-script.on_event(defines.events.on_built_entity, onBuiltDeployer)
-script.on_event(defines.events.on_robot_built_entity, onBuiltDeployer)
+function on_configuration_changed(event)
+  -- Collect all modded blueprint signals in one table
+  global.blueprint_signals = {}
+  for _,item in pairs(game.item_prototypes) do
+    if item.type == "blueprint" or item.type == "blueprint-book" then
+      table.insert(global.blueprint_signals, item.name)
+    end
+  end
+end
+
+script.on_event(defines.events.on_tick, on_tick)
+script.on_event(defines.events.on_built_entity, on_built)
+script.on_event(defines.events.on_robot_built_entity, on_built)
+script.on_event(defines.events.script_raised_built, on_built)
+script.on_configuration_changed(on_configuration_changed)
