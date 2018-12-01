@@ -325,7 +325,7 @@ function on_built(event)
   end
 end
 
-function on_configuration_changed(event)
+function on_mods_changed(event)
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
   for _,item in pairs(game.item_prototypes) do
@@ -339,4 +339,5 @@ script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_built_entity, on_built)
 script.on_event(defines.events.on_robot_built_entity, on_built)
 script.on_event(defines.events.script_raised_built, on_built)
-script.on_configuration_changed(on_configuration_changed)
+script.on_init(on_mods_changed)
+script.on_configuration_changed(on_mods_changed)
