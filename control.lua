@@ -274,71 +274,62 @@ end
 
 -- Correctly handle circuit network under/overflow
 function overflow_int32(n)
-  if n > 2147483647 then n = n - 4294967296 end
-  if n < -2147483648 then n = n + 4294967296 end
+  n = n % 4294967296
+  if n > 2147483647 then return n - 4294967296 end
   return n
 end
 
--- Cache the circuit networks to speed up performance
-function update_net_cache(ent)
-  if not net_cache then
-    net_cache = {}
-  end
-
-  local ent_cache = net_cache[ent.unit_number]
-  if not ent_cache then
-    ent_cache = {last_update=-1}
-    net_cache[ent.unit_number] = ent_cache
-  end
-
-  -- Get the circuit networks at most once per tick per entity
-  if game.tick > ent_cache.last_update then
-
-    if not ent_cache.red_network or not ent_cache.red_network.valid then
-      ent_cache.red_network = ent.get_circuit_network(defines.wire_type.red)
-    end
-
-    if not ent_cache.green_network or not ent_cache.green_network.valid then
-      ent_cache.green_network = ent.get_circuit_network(defines.wire_type.green)
-    end
-
-    ent_cache.last_update = game.tick
-  end
-  return ent_cache;
-end
-
 -- Return integer value for given Signal: {type=, name=}
-function get_signal_value(ent,signal)
-  if signal == nil or signal.name == nil then return(0) end
-  local ent_cache = update_net_cache(ent)
-
+function get_signal_value(ent, signal)
+  if signal == nil or signal.name == nil then return 0 end
+  local ent_cache = get_net_cache(ent)
   local signal_val = 0
-
   if ent_cache.red_network then
     signal_val = signal_val + ent_cache.red_network.get_signal(signal)
   end
-
   if ent_cache.green_network then
     signal_val = signal_val + ent_cache.green_network.get_signal(signal)
   end
-
   return overflow_int32(signal_val);
 end
 
 -- Return array of signal groups. Each signal group is an array of Signal: {signal={type=, name=}, count=}
 function get_all_signals(ent)
-  local ent_cache = update_net_cache(ent)
-
+  local ent_cache = get_net_cache(ent)
   local signal_groups = {}
   if ent_cache.red_network then
     signal_groups[#signal_groups+1] = ent_cache.red_network.signals
   end
-
   if ent_cache.green_network then
     signal_groups[#signal_groups+1] = ent_cache.green_network.signals
   end
-
   return signal_groups
+end
+
+-- Cache the circuit networks to speed up performance
+function get_net_cache(ent)
+  if not global.net_cache then
+    global.net_cache = {}
+  end
+
+  local ent_cache = global.net_cache[ent.unit_number]
+  if not ent_cache then
+    ent_cache = {last_update = -1}
+    global.net_cache[ent.unit_number] = ent_cache
+  end
+
+  -- Get the circuit networks at most once per tick per entity
+  if game.tick > ent_cache.last_update then
+    if not ent_cache.red_network or not ent_cache.red_network.valid then
+      ent_cache.red_network = ent.get_circuit_network(defines.wire_type.red)
+    end
+    if not ent_cache.green_network or not ent_cache.green_network.valid then
+      ent_cache.green_network = ent.get_circuit_network(defines.wire_type.green)
+    end
+    ent_cache.last_update = game.tick
+  end
+
+  return ent_cache;
 end
 
 
