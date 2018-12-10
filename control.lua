@@ -1,3 +1,277 @@
+function on_mods_changed()
+  -- Collect all modded blueprint signals in one table
+  global.blueprint_signals = {}
+  for _,item in pairs(game.item_prototypes) do
+    if item.type == "blueprint" or item.type == "blueprint-book" then
+      table.insert(global.blueprint_signals, item.name)
+    end
+  end
+end
+
+function on_built(event)
+  local ent = event.created_entity
+  if not ent or not ent.valid then return end
+  if ent.name == "blueprint-deployer" then
+    if not global.deployers then global.deployers={} end
+    table.insert(global.deployers, ent)
+  end
+end
+
+function on_tick(event)
+  if global.deployers then
+    for k,deployer in pairs(global.deployers) do
+      if deployer.valid and deployer.name == "blueprint-deployer" then
+        on_tick_deployer(deployer)
+      else
+        global.deployers[k]=nil
+      end
+    end
+  end
+end
+
+function on_tick_deployer(deployer)
+  local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
+  if deployPrint > 0 then
+    local bp = deployer.get_inventory(defines.inventory.chest)[1]
+    if not bp.valid_for_read then return end
+    if bp.is_blueprint then
+      deploy_blueprint(bp, deployer)
+    elseif bp.is_blueprint_book then
+      local inventory = bp.get_inventory(defines.inventory.item_main)
+      if deployPrint > inventory.get_item_count() then
+        deployPrint = bp.active_index
+      end
+      deploy_blueprint(inventory[deployPrint], deployer)
+    end
+    return
+  end
+
+  local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
+  if deconstructArea == -2 then
+    -- Deconstruct Self
+    deployer.order_deconstruction(deployer.force)
+    return
+  elseif deconstructArea == 1 then
+    deconstruct_area(true, deployer)
+    return
+  elseif deconstructArea == -1 then
+    deconstruct_area(false, deployer)
+    return
+  end
+
+  local copy = get_signal_value(deployer,{name="signal-C",type="virtual"})
+  if copy == 1 then
+    -- Copy blueprint
+    local inventory = deployer.get_inventory(defines.inventory.chest)
+    for _, itemName in pairs(global.blueprint_signals) do
+      if not inventory.is_empty() then return end
+      if get_signal_value(deployer,{name=itemName,type="item"}) >= 1 then
+        copy_stack(deployer, itemName)
+      end
+    end
+    return
+  elseif copy == -1 then
+    -- Delete blueprint
+    local stack = deployer.get_inventory(defines.inventory.chest)[1]
+    if not stack.valid_for_read then return end
+    if stack.is_blueprint or stack.is_blueprint_book then
+      stack.clear()
+    end
+    return
+  end
+end
+
+function deploy_blueprint(bp, deployer)
+  if not bp then return end
+  if not bp.valid_for_read then return end
+  if not bp.is_blueprint_setup() then return end
+
+  -- Find anchor point
+  local anchorEntity = nil
+  local bpEntities = bp.get_blueprint_entities()
+  if bpEntities then
+    for _,bpEntity in pairs(bpEntities) do
+      if bpEntity.name == "wooden-chest" then
+        anchorEntity = bpEntity
+        break
+      elseif bpEntity.name == "blueprint-deployer" and not anchorEntity then
+        anchorEntity = bpEntity
+      end
+    end
+  end
+  local anchorX,anchorY = 0,0
+  if anchorEntity then
+    anchorX = anchorEntity.position.x
+    anchorY = anchorEntity.position.y
+  end
+
+  local R = get_signal_value(deployer,{name="signal-R",type="virtual"})
+  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
+  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
+
+  -- Rotate
+  local direction = defines.direction.north
+  if (R == 1) then
+    direction = defines.direction.east
+    anchorX, anchorY = -anchorY, anchorX
+  elseif (R == 2) then
+    direction = defines.direction.south
+    anchorX, anchorY = -anchorX, -anchorY
+  elseif (R == 3) then
+    direction = defines.direction.west
+    anchorX, anchorY = anchorY, -anchorX
+  end
+
+  local position = {
+    x = deployer.position.x + X - anchorX,
+    y = deployer.position.y + Y - anchorY,
+  }
+
+  local result = bp.build_blueprint{
+    surface = deployer.surface,
+    force = deployer.force,
+    position = position,
+    direction = direction,
+    force_build = true,
+  }
+
+  for _, entity in pairs(result) do
+    script.raise_event(defines.events.on_robot_built_entity, {
+      created_entity = entity,
+      stack = bp,
+      robot = {valid = false, type = "container", name = "blueprint-deployer"},
+    })
+  end
+end
+
+function deconstruct_area(deconstruct, deployer)
+  local signal_groups = get_all_signals(deployer)
+  local X,Y,W,H = 0,0,0,0
+  for _,sig_group in pairs(signal_groups) do
+    for _,sig in pairs(sig_group) do
+      if sig.signal.name=="signal-X" then
+        X = X + sig.count
+      elseif sig.signal.name=="signal-H" then
+        H = H + sig.count
+      elseif sig.signal.name=="signal-W" then
+        W = W + sig.count
+      elseif sig.signal.name=="signal-Y" then
+        Y = Y + sig.count
+      end
+    end
+  end
+  X = overflow_int32(X)
+  Y = overflow_int32(Y)
+  W = overflow_int32(W)
+  H = overflow_int32(H)
+
+  if W < 1 then W = 1 end
+  if H < 1 then H = 1 end
+
+  -- Align to grid
+  if W % 2 == 0 then X = X + 0.5 end
+  if H % 2 == 0 then Y = Y + 0.5 end
+
+  -- Subtract 1 pixel from edges to avoid tile overlap
+  W = W - 1/128
+  H = H - 1/128
+
+  local area = {
+    {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
+    {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)},
+  }
+
+  if deconstruct == false then
+    -- Cancel Area
+    deployer.surface.cancel_deconstruct_area{area=area, force=deployer.force}
+  else
+    -- Deconstruct Area
+    local deconstructSelf = deployer.to_be_deconstructed(deployer.force)
+    deployer.surface.deconstruct_area{area=area, force=deployer.force}
+    if not deconstructSelf then
+       -- Don't deconstruct myself in an area order
+      deployer.cancel_deconstruction(deployer.force)
+    end
+  end
+end
+
+function copy_stack(deployer, itemName)
+  local stack = find_stack_in_network(deployer, itemName)
+  if not stack then return end
+  deployer.get_inventory(defines.inventory.chest)[1].set_stack(stack)
+end
+
+function find_stack_in_network(deployer, itemName)
+  -- Breadth-first search for the item in the network
+  -- If there are multiple items, returns the closest one (least wire hops)
+  local present = {
+    [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.red)] =
+    {
+      entity = deployer,
+      connector = defines.circuit_connector_id.container,
+      wire = defines.wire_type.red,
+    },
+    [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.green)] =
+    {
+      entity = deployer,
+      connector = defines.circuit_connector_id.container,
+      wire = defines.wire_type.green,
+    }
+  }
+  local future = {}
+  local past = {}
+  while next(present) do
+    for k,p in pairs(present) do
+      -- Search connecting wires
+      for _,f in pairs(p.entity.circuit_connection_definitions) do
+        -- Wire color and connection points must match
+        if f.target_entity.unit_number
+        and f.wire == p.wire
+        and f.source_circuit_id == p.connector then
+          local hash = con_hash(f.target_entity, f.target_circuit_id, f.wire)
+          if not past[hash] and not present[hash] and not future[hash] then
+            -- Search inside the entity
+            local stack = find_stack_in_container(f.target_entity, itemName)
+            if stack then return stack end
+
+            -- Add entity connections to future searches
+            future[hash] = {
+              entity = f.target_entity,
+              connector = f.target_circuit_id,
+              wire = f.wire
+            }
+          end
+        end
+      end
+      past[k] = true
+    end
+    present = future
+    future = {}
+  end
+end
+
+function find_stack_in_container(entity, itemName)
+  if entity.type == "container" or entity.type == "logistic-container" then
+    local inventory = entity.get_inventory(defines.inventory.chest)
+    for i = 1, #inventory do
+      if inventory[i].valid_for_read and inventory[i].name == itemName then
+        return inventory[i]
+      end
+    end
+  elseif entity.type == "inserter" then
+    local behavior = entity.get_control_behavior()
+    if not behavior then return end
+    if not behavior.circuit_read_hand_contents then return end
+    if entity.held_stack.valid_for_read and entity.held_stack.name == itemName then
+      return entity.held_stack
+    end
+  end
+end
+
+function con_hash(entity, connector, wire)
+  return entity.unit_number .. "-" .. connector .. "-" .. wire
+end
+
 -- Correctly handle circuit network under/overflow
 function overflow_int32(n)
   if n > 2147483647 then n = n - 4294967296 end
@@ -67,273 +341,6 @@ function get_all_signals(ent)
   return signal_groups
 end
 
-function deploy_blueprint(bp, deployer)
-  if not bp then return end
-  if not bp.valid_for_read then return end
-  if not bp.is_blueprint_setup() then return end
-
-  -- Find anchor point
-  local anchorEntity = nil
-  local bpEntities = bp.get_blueprint_entities()
-  if bpEntities then
-    for _,bpEntity in pairs(bpEntities) do
-      if bpEntity.name == "wooden-chest" then
-        anchorEntity = bpEntity
-        break
-      elseif bpEntity.name == "blueprint-deployer" and not anchorEntity then
-        anchorEntity = bpEntity
-      end
-    end
-  end
-  local anchorX,anchorY = 0,0
-  if anchorEntity then
-    anchorX = anchorEntity.position.x
-    anchorY = anchorEntity.position.y
-  end
-
-  local R = get_signal_value(deployer,{name="signal-R",type="virtual"})
-  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
-  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
-
-  -- Rotate
-  local direction = defines.direction.north
-  if (R == 1) then
-    direction = defines.direction.east
-    anchorX, anchorY = -anchorY, anchorX
-  elseif (R == 2) then
-    direction = defines.direction.south
-    anchorX, anchorY = -anchorX, -anchorY
-  elseif (R == 3) then
-    direction = defines.direction.west
-    anchorX, anchorY = anchorY, -anchorX
-  end
-
-  local position = {
-    x = deployer.position.x + X - anchorX,
-    y = deployer.position.y + Y - anchorY,
-  }
-
-  local result = bp.build_blueprint{
-    surface = deployer.surface,
-    force = deployer.force,
-    position = position,
-    direction = direction,
-    force_build = true,
-  }
-
-  for _, entity in pairs(result) do
-    script.raise_event(defines.events.on_robot_built_entity, {
-      created_entity = entity,
-      stack = bp,
-      robot = {valid = false, type = "container", name = "blueprint-deployer"},
-    })
-  end
-end
-
-function copy_stack(deployer, itemName)
-  local stack = find_stack_in_network(deployer, itemName)
-  if not stack then return end
-  deployer.get_inventory(defines.inventory.chest)[1].set_stack(stack)
-end
-
-function find_stack_in_container(entity, itemName)
-  if entity.type == "container" or entity.type == "logistic-container" then
-    local inventory = entity.get_inventory(defines.inventory.chest)
-    for i = 1, #inventory do
-      if inventory[i].valid_for_read and inventory[i].name == itemName then
-        return inventory[i]
-      end
-    end
-  elseif entity.type == "inserter" then
-    local behavior = entity.get_control_behavior()
-    if not behavior then return end
-    if not behavior.circuit_read_hand_contents then return end
-    if entity.held_stack.valid_for_read and entity.held_stack.name == itemName then
-      return entity.held_stack
-    end
-  end
-end
-
-function con_hash(entity, connector, wire)
-  return entity.unit_number .. "-" .. connector .. "-" .. wire
-end
-
-function find_stack_in_network(deployer, itemName)
-  -- Breadth-first search for the item in the network
-  -- If there are multiple items, returns the closest one (least wire hops)
-  local present = {
-    [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.red)] =
-    {
-      entity = deployer,
-      connector = defines.circuit_connector_id.container,
-      wire = defines.wire_type.red,
-    },
-    [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.green)] =
-    {
-      entity = deployer,
-      connector = defines.circuit_connector_id.container,
-      wire = defines.wire_type.green,
-    }
-  }
-  local future = {}
-  local past = {}
-  while next(present) do
-    for k,p in pairs(present) do
-      -- Search connecting wires
-      for _,f in pairs(p.entity.circuit_connection_definitions) do
-        -- Wire color and connection points must match
-        if f.target_entity.unit_number
-        and f.wire == p.wire
-        and f.source_circuit_id == p.connector then
-          local hash = con_hash(f.target_entity, f.target_circuit_id, f.wire)
-          if not past[hash] and not present[hash] and not future[hash] then
-            -- Search inside the entity
-            local stack = find_stack_in_container(f.target_entity, itemName)
-            if stack then return stack end
-
-            -- Add entity connections to future searches
-            future[hash] = {
-              entity = f.target_entity,
-              connector = f.target_circuit_id,
-              wire = f.wire
-            }
-          end
-        end
-      end
-      past[k] = true
-    end
-    present = future
-    future = {}
-  end
-end
-
-function on_tick_deployer(deployer)
-  local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
-  if deployPrint > 0 then
-    -- Check chest inventory for blueprint
-    local deployerItemStack = deployer.get_inventory(defines.inventory.chest)[1]
-    if not deployerItemStack.valid_for_read then return end
-
-    if deployerItemStack.is_blueprint then
-      deploy_blueprint(deployerItemStack, deployer)
-    elseif deployerItemStack.is_blueprint_book then
-      local bookInv = deployerItemStack.get_inventory(defines.inventory.item_main)
-      if deployPrint > bookInv.get_item_count() then
-        deployPrint = deployerItemStack.active_index
-      end
-      deploy_blueprint(bookInv[deployPrint], deployer)
-    end
-    return
-  end
-
-  local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
-  if deconstructArea == -2 then
-    -- Deconstruct Self
-    deployer.order_deconstruction(deployer.force)
-    return
-  elseif deconstructArea == -1 or deconstructArea == 1 then
-    local signal_groups = get_all_signals(deployer)
-    local X,Y,W,H = 0,0,0,0
-    for _,sig_group in pairs(signal_groups) do
-      for _,sig in pairs(sig_group) do
-        if sig.signal.name=="signal-X" then
-          X = X + sig.count
-        elseif sig.signal.name=="signal-H" then
-          H = H + sig.count
-        elseif sig.signal.name=="signal-W" then
-          W = W + sig.count
-        elseif sig.signal.name=="signal-Y" then
-          Y = Y + sig.count
-        end
-      end
-    end
-    X = overflow_int32(X)
-    Y = overflow_int32(Y)
-    W = overflow_int32(W)
-    H = overflow_int32(H)
-
-    if W < 1 then W = 1 end
-    if H < 1 then H = 1 end
-
-    -- Align to grid
-    if W % 2 == 0 then X = X + 0.5 end
-    if H % 2 == 0 then Y = Y + 0.5 end
-
-    -- Subtract 1 pixel from edges to avoid tile overlap
-    W = W - 1/128
-    H = H - 1/128
-
-    local area = {
-      {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
-      {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)},
-    }
-
-    if deconstructArea == 1 then
-      -- Cancel Area
-      deployer.surface.cancel_deconstruct_area{area=area, force=deployer.force}
-    elseif deconstructArea == -1 then
-      -- Deconstruct Area
-      local deconstructSelf = deployer.to_be_deconstructed(deployer.force)
-      deployer.surface.deconstruct_area{area=area, force=deployer.force}
-      if not deconstructSelf then
-         -- Don't deconstruct myself in an area order
-        deployer.cancel_deconstruction(deployer.force)
-      end
-    end
-    return
-  end
-
-  local copy = get_signal_value(deployer,{name="signal-C",type="virtual"})
-  if copy == 1 then
-    -- Copy blueprint
-    for _,item in pairs(global.blueprint_signals) do
-      if not deployer.get_inventory(defines.inventory.chest).is_empty() then return end
-      if get_signal_value(deployer,{name=item,type="item"}) >= 1 then
-        copy_stack(deployer, item)
-      end
-    end
-    return
-  elseif copy == -1 then
-    -- Delete blueprint
-    local stack = deployer.get_inventory(defines.inventory.chest)[1]
-    if not stack.valid_for_read then return end
-    if stack.is_blueprint or stack.is_blueprint_book then
-      stack.clear()
-    end
-    return
-  end
-end
-
-function on_tick(event)
-  if global.deployers then
-    for k,deployer in pairs(global.deployers) do
-      if deployer.valid and deployer.name == "blueprint-deployer" then
-        on_tick_deployer(deployer)
-      else
-        global.deployers[k]=nil
-      end
-    end
-  end
-end
-
-function on_built(event)
-  local ent = event.created_entity
-  if not ent or not ent.valid then return end
-  if ent.name == "blueprint-deployer" then
-    if not global.deployers then global.deployers={} end
-    table.insert(global.deployers, ent)
-  end
-end
-
-function on_mods_changed(event)
-  -- Collect all modded blueprint signals in one table
-  global.blueprint_signals = {}
-  for _,item in pairs(game.item_prototypes) do
-    if item.type == "blueprint" or item.type == "blueprint-book" then
-      table.insert(global.blueprint_signals, item.name)
-    end
-  end
-end
 
 script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_built_entity, on_built)
