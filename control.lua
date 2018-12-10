@@ -52,10 +52,10 @@ function on_tick_deployer(deployer)
     deployer.order_deconstruction(deployer.force)
     return
   elseif deconstructArea == 1 then
-    deconstruct_area(true, deployer)
+    deconstruct_area(false, deployer)
     return
   elseif deconstructArea == -1 then
-    deconstruct_area(false, deployer)
+    deconstruct_area(true, deployer)
     return
   end
 
