@@ -64,7 +64,7 @@ function on_tick_deployer(deployer)
     deconstruct_area(true, deployer)
     return
   elseif deconstructArea == 1 then
-    -- Cancel deconstruct area
+    -- Cancel deconstruction in area
     deconstruct_area(false, deployer)
     return
   elseif deconstructArea == -2 then
@@ -114,15 +114,15 @@ function deploy_blueprint(bp, deployer)
   end
 
   -- Rotate
-  local R = signal_value(deployer, ROTATE_SIGNAL)
+  local rotation = signal_value(deployer, ROTATE_SIGNAL)
   local direction = defines.direction.north
-  if (R == 1) then
+  if (rotation == 1) then
     direction = defines.direction.east
     anchorX, anchorY = -anchorY, anchorX
-  elseif (R == 2) then
+  elseif (rotation == 2) then
     direction = defines.direction.south
     anchorX, anchorY = -anchorX, -anchorY
-  elseif (R == 3) then
+  elseif (rotation == 3) then
     direction = defines.direction.west
     anchorX, anchorY = anchorY, -anchorX
   end
@@ -190,7 +190,7 @@ function copy_blueprint(deployer)
   if not inventory.is_empty() then return end
   for _, itemName in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
-    if signal_value(deployer,{name=itemName,type="item"}) >= 1 then
+    if signal_value(deployer, {name=itemName, type="item"}) >= 1 then
       -- Signal exists, now we have to search for the blueprint
       local stack = find_stack_in_network(deployer, itemName)
       if stack then
