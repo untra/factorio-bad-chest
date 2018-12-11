@@ -62,13 +62,7 @@ function on_tick_deployer(deployer)
   local copy = get_signal_value(deployer,{name="signal-C",type="virtual"})
   if copy == 1 then
     -- Copy blueprint
-    local inventory = deployer.get_inventory(defines.inventory.chest)
-    for _, itemName in pairs(global.blueprint_signals) do
-      if not inventory.is_empty() then return end
-      if get_signal_value(deployer,{name=itemName,type="item"}) >= 1 then
-        copy_stack(deployer, itemName)
-      end
-    end
+    copy_blueprint(deployer)
     return
   elseif copy == -1 then
     -- Delete blueprint
@@ -180,15 +174,25 @@ function deconstruct_area(deconstruct, deployer)
   end
 end
 
-function copy_stack(deployer, itemName)
-  local stack = find_stack_in_network(deployer, itemName)
-  if not stack then return end
-  deployer.get_inventory(defines.inventory.chest)[1].set_stack(stack)
+function copy_blueprint(deployer)
+  local inventory = deployer.get_inventory(defines.inventory.chest)
+  if not inventory.is_empty() then return end
+  for _, itemName in pairs(global.blueprint_signals) do
+    -- Check for a signal before doing an expensive search
+    if get_signal_value(deployer,{name=itemName,type="item"}) >= 1 then
+      -- Signal exists, now we have to search for the blueprint
+      local stack = find_stack_in_network(deployer, itemName)
+      if stack then
+        inventory[1].set_stack(stack)
+        return
+      end
+    end
+  end
 end
 
+-- Breadth-first search for the item in the network
+-- If there are multiple items, returns the closest one (least wire hops)
 function find_stack_in_network(deployer, itemName)
-  -- Breadth-first search for the item in the network
-  -- If there are multiple items, returns the closest one (least wire hops)
   local present = {
     [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.red)] =
     {
@@ -257,38 +261,22 @@ function con_hash(entity, connector, wire)
   return entity.unit_number .. "-" .. connector .. "-" .. wire
 end
 
--- Correctly handle circuit network under/overflow
-function overflow_int32(n)
-  if n > 2147483647 then n = n - 4294967296 end
-  if n < -2147483648 then n = n + 4294967296 end
-  return n
-end
-
 -- Return integer value for given Signal: {type=, name=}
 function get_signal_value(ent, signal)
   if signal == nil or signal.name == nil then return 0 end
   local ent_cache = get_net_cache(ent)
-  local signal_val = 0
+  local value = 0
   if ent_cache.red_network then
-    signal_val = signal_val + ent_cache.red_network.get_signal(signal)
+    value = value + ent_cache.red_network.get_signal(signal)
   end
   if ent_cache.green_network then
-    signal_val = signal_val + ent_cache.green_network.get_signal(signal)
+    value = value + ent_cache.green_network.get_signal(signal)
   end
-  return overflow_int32(signal_val);
-end
 
--- Return array of signal groups. Each signal group is an array of Signal: {signal={type=, name=}, count=}
-function get_all_signals(ent)
-  local ent_cache = get_net_cache(ent)
-  local signal_groups = {}
-  if ent_cache.red_network then
-    signal_groups[#signal_groups+1] = ent_cache.red_network.signals
-  end
-  if ent_cache.green_network then
-    signal_groups[#signal_groups+1] = ent_cache.green_network.signals
-  end
-  return signal_groups
+  -- Correctly handle circuit network under/overflow
+  if value > 2147483647 then value = value - 4294967296 end
+  if value < -2147483648 then value = value + 4294967296 end
+  return value;
 end
 
 -- Cache the circuit networks to speed up performance
