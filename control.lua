@@ -145,25 +145,10 @@ function deploy_blueprint(bp, deployer)
 end
 
 function deconstruct_area(deconstruct, deployer)
-  local signal_groups = get_all_signals(deployer)
-  local X,Y,W,H = 0,0,0,0
-  for _,sig_group in pairs(signal_groups) do
-    for _,sig in pairs(sig_group) do
-      if sig.signal.name=="signal-X" then
-        X = X + sig.count
-      elseif sig.signal.name=="signal-H" then
-        H = H + sig.count
-      elseif sig.signal.name=="signal-W" then
-        W = W + sig.count
-      elseif sig.signal.name=="signal-Y" then
-        Y = Y + sig.count
-      end
-    end
-  end
-  X = overflow_int32(X)
-  Y = overflow_int32(Y)
-  W = overflow_int32(W)
-  H = overflow_int32(H)
+  local W = get_signal_value(deployer,{name="signal-W",type="virtual"})
+  local H = get_signal_value(deployer,{name="signal-H",type="virtual"})
+  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
+  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
