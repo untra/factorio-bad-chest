@@ -8,7 +8,16 @@ local X_SIGNAL = {name="signal-X", type="virtual"}
 local Y_SIGNAL = {name="signal-Y", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 
+function on_init()
+  global.deployers = {}
+  global.net_cache = {}
+  on_mods_changed()
+end
+
 function on_mods_changed()
+  if not global.deployers then global.deployers = {} end
+  if not global.net_cache then global.net_cache = {} end
+
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
   for _,item in pairs(game.item_prototypes) do
@@ -22,19 +31,24 @@ function on_built(event)
   local ent = event.created_entity
   if not ent or not ent.valid then return end
   if ent.name == "blueprint-deployer" then
-    if not global.deployers then global.deployers={} end
     table.insert(global.deployers, ent)
   end
 end
 
+function on_destroyed(event)
+  local ent = event.created_entity
+  if not ent or not ent.valid then return end
+  if ent.name == "blueprint-deployer" then
+    global.net_cache[ent.unit_number] = nil
+  end
+end
+
 function on_tick(event)
-  if global.deployers then
-    for k,deployer in pairs(global.deployers) do
-      if deployer.valid and deployer.name == "blueprint-deployer" then
-        on_tick_deployer(deployer)
-      else
-        global.deployers[k]=nil
-      end
+  for key, deployer in pairs(global.deployers) do
+    if deployer.valid then
+      on_tick_deployer(deployer)
+    else
+      global.deployers[key] = nil
     end
   end
 end
@@ -132,7 +146,7 @@ function deploy_blueprint(bp, deployer)
     y = deployer.position.y - anchorY + signal_value(deployer, Y_SIGNAL),
   }
 
-  bp.build_blueprint{
+  local result = bp.build_blueprint{
     surface = deployer.surface,
     force = deployer.force,
     position = position,
@@ -275,13 +289,12 @@ end
 -- Return integer value for given Signal: {type=, name=}
 function signal_value(ent, signal)
   -- Cache the circuit networks to speed up performance
-  if not global.net_cache then global.net_cache = {} end
   local cache = global.net_cache[ent.unit_number]
   if not cache then
     cache = {last_update = -1}
     global.net_cache[ent.unit_number] = cache
   end
-  -- Only try to reload empty networks once per tick
+  -- Try to reload empty networks once per tick
   -- Never reload valid networks
   if cache.last_update < game.tick then
     if not cache.red_network or not cache.red_network.valid then
@@ -313,5 +326,9 @@ script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_built_entity, on_built)
 script.on_event(defines.events.on_robot_built_entity, on_built)
 script.on_event(defines.events.script_raised_built, on_built)
-script.on_init(on_mods_changed)
+script.on_event(defines.events.on_player_mined_entity, on_destroyed)
+script.on_event(defines.events.on_robot_mined_entity, on_destroyed)
+script.on_event(defines.events.on_entity_died, on_destroyed)
+script.on_event(defines.events.script_raised_destroy, on_destroyed)
+script.on_init(on_init)
 script.on_configuration_changed(on_mods_changed)
