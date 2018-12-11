@@ -274,7 +274,19 @@ end
 
 -- Return integer value for given Signal: {type=, name=}
 function signal_value(ent, signal)
-  local cache = get_net_cache(ent)
+  -- Cache the circuit networks to speed up performance
+  if not global.net_cache[ent.unit_number] then
+    global.net_cache[ent.unit_number] = {last_update = -1}
+  end
+  local cache = global.net_cache[ent.unit_number]
+  end
+  if cache.last_update < game.tick then
+    cache.red_network = ent.get_circuit_network(defines.wire_type.red)
+    cache.green_network = ent.get_circuit_network(defines.wire_type.green)
+    cache.last_update = game.tick
+  end
+
+  -- Get the signal
   local value = 0
   if cache.red_network then
     value = value + cache.red_network.get_signal(signal)
