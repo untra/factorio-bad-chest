@@ -279,7 +279,6 @@ function signal_value(ent, signal)
     global.net_cache[ent.unit_number] = {last_update = -1}
   end
   local cache = global.net_cache[ent.unit_number]
-  end
   if cache.last_update < game.tick then
     cache.red_network = ent.get_circuit_network(defines.wire_type.red)
     cache.green_network = ent.get_circuit_network(defines.wire_type.green)
