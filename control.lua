@@ -274,14 +274,13 @@ end
 
 -- Return integer value for given Signal: {type=, name=}
 function signal_value(ent, signal)
-  if signal == nil or signal.name == nil then return 0 end
-  local ent_cache = get_net_cache(ent)
+  local cache = get_net_cache(ent)
   local value = 0
-  if ent_cache.red_network then
-    value = value + ent_cache.red_network.get_signal(signal)
+  if cache.red_network then
+    value = value + cache.red_network.get_signal(signal)
   end
-  if ent_cache.green_network then
-    value = value + ent_cache.green_network.get_signal(signal)
+  if cache.green_network then
+    value = value + cache.green_network.get_signal(signal)
   end
 
   -- Correctly handle circuit network under/overflow
