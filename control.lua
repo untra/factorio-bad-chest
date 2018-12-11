@@ -274,8 +274,8 @@ end
 
 -- Correctly handle circuit network under/overflow
 function overflow_int32(n)
-  n = n % 4294967296
-  if n > 2147483647 then return n - 4294967296 end
+  if n > 2147483647 then n = n - 4294967296 end
+  if n < -2147483648 then n = n + 4294967296 end
   return n
 end
 
