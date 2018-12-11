@@ -275,13 +275,21 @@ end
 -- Return integer value for given Signal: {type=, name=}
 function signal_value(ent, signal)
   -- Cache the circuit networks to speed up performance
-  if not global.net_cache[ent.unit_number] then
-    global.net_cache[ent.unit_number] = {last_update = -1}
-  end
+  if not global.net_cache then global.net_cache = {} end
   local cache = global.net_cache[ent.unit_number]
+  if not cache then
+    cache = {last_update = -1}
+    global.net_cache[ent.unit_number] = cache
+  end
+  -- Only try to reload empty networks once per tick
+  -- Never reload valid networks
   if cache.last_update < game.tick then
-    cache.red_network = ent.get_circuit_network(defines.wire_type.red)
-    cache.green_network = ent.get_circuit_network(defines.wire_type.green)
+    if not cache.red_network or not cache.red_network.valid then
+      cache.red_network = ent.get_circuit_network(defines.wire_type.red)
+    end
+    if not cache.green_network or not cache.green_network.valid then
+      cache.green_network = ent.get_circuit_network(defines.wire_type.green)
+    end
     cache.last_update = game.tick
   end
 
@@ -298,32 +306,6 @@ function signal_value(ent, signal)
   if value > 2147483647 then value = value - 4294967296 end
   if value < -2147483648 then value = value + 4294967296 end
   return value;
-end
-
--- Cache the circuit networks to speed up performance
-function get_net_cache(ent)
-  if not global.net_cache then
-    global.net_cache = {}
-  end
-
-  local ent_cache = global.net_cache[ent.unit_number]
-  if not ent_cache then
-    ent_cache = {last_update = -1}
-    global.net_cache[ent.unit_number] = ent_cache
-  end
-
-  -- Get the circuit networks at most once per tick per entity
-  if game.tick > ent_cache.last_update then
-    if not ent_cache.red_network or not ent_cache.red_network.valid then
-      ent_cache.red_network = ent.get_circuit_network(defines.wire_type.red)
-    end
-    if not ent_cache.green_network or not ent_cache.green_network.valid then
-      ent_cache.green_network = ent.get_circuit_network(defines.wire_type.green)
-    end
-    ent_cache.last_update = game.tick
-  end
-
-  return ent_cache;
 end
 
 
