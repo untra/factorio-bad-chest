@@ -1,3 +1,13 @@
+-- Command signals
+local DEPLOY_SIGNAL = {name="construction-robot", type="item"}
+local DECONSTRUCT_SIGNAL = {name="deconstruction-planner", type="item"}
+local COPY_SIGNAL = {name="signal-C", type="virtual"}
+local WIDTH_SIGNAL = {name="signal-W", type="virtual"}
+local HEIGHT_SIGNAL = {name="signal-H", type="virtual"}
+local X_SIGNAL = {name="signal-X", type="virtual"}
+local Y_SIGNAL = {name="signal-Y", type="virtual"}
+local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
+
 function on_mods_changed()
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
@@ -30,13 +40,15 @@ function on_tick(event)
 end
 
 function on_tick_deployer(deployer)
-  local deployPrint = get_signal_value(deployer,{name="construction-robot",type="item"})
+  local deployPrint = signal_value(deployer, DEPLOY_SIGNAL)
   if deployPrint > 0 then
     local bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
     if bp.is_blueprint then
+      -- Deploy blueprint
       deploy_blueprint(bp, deployer)
     elseif bp.is_blueprint_book then
+      -- Deploy blueprint from book
       local inventory = bp.get_inventory(defines.inventory.item_main)
       if deployPrint > inventory.get_item_count() then
         deployPrint = bp.active_index
@@ -46,20 +58,22 @@ function on_tick_deployer(deployer)
     return
   end
 
-  local deconstructArea = get_signal_value(deployer,{name="deconstruction-planner",type="item"})
-  if deconstructArea == -2 then
+  local deconstructArea = signal_value(deployer, DECONSTRUCT_SIGNAL)
+  if deconstructArea == -1 then
+    -- Deconstruct area
+    deconstruct_area(true, deployer)
+    return
+  elseif deconstructArea == 1 then
+    -- Cancel deconstruct area
+    deconstruct_area(false, deployer)
+    return
+  elseif deconstructArea == -2 then
     -- Deconstruct Self
     deployer.order_deconstruction(deployer.force)
     return
-  elseif deconstructArea == 1 then
-    deconstruct_area(false, deployer)
-    return
-  elseif deconstructArea == -1 then
-    deconstruct_area(true, deployer)
-    return
   end
 
-  local copy = get_signal_value(deployer,{name="signal-C",type="virtual"})
+  local copy = signal_value(deployer, COPY_SIGNAL)
   if copy == 1 then
     -- Copy blueprint
     copy_blueprint(deployer)
@@ -99,11 +113,8 @@ function deploy_blueprint(bp, deployer)
     anchorY = anchorEntity.position.y
   end
 
-  local R = get_signal_value(deployer,{name="signal-R",type="virtual"})
-  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
-  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
-
   -- Rotate
+  local R = signal_value(deployer, ROTATE_SIGNAL)
   local direction = defines.direction.north
   if (R == 1) then
     direction = defines.direction.east
@@ -117,11 +128,11 @@ function deploy_blueprint(bp, deployer)
   end
 
   local position = {
-    x = deployer.position.x + X - anchorX,
-    y = deployer.position.y + Y - anchorY,
+    x = deployer.position.x - anchorX + signal_value(deployer, X_SIGNAL),
+    y = deployer.position.y - anchorY + signal_value(deployer, Y_SIGNAL),
   }
 
-  local result = bp.build_blueprint{
+  bp.build_blueprint{
     surface = deployer.surface,
     force = deployer.force,
     position = position,
@@ -139,10 +150,10 @@ function deploy_blueprint(bp, deployer)
 end
 
 function deconstruct_area(deconstruct, deployer)
-  local W = get_signal_value(deployer,{name="signal-W",type="virtual"})
-  local H = get_signal_value(deployer,{name="signal-H",type="virtual"})
-  local X = get_signal_value(deployer,{name="signal-X",type="virtual"})
-  local Y = get_signal_value(deployer,{name="signal-Y",type="virtual"})
+  local W = signal_value(deployer, WIDTH_SIGNAL)
+  local H = signal_value(deployer, HEIGHT_SIGNAL)
+  local X = signal_value(deployer, X_SIGNAL)
+  local Y = signal_value(deployer, Y_SIGNAL)
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
@@ -156,8 +167,8 @@ function deconstruct_area(deconstruct, deployer)
   H = H - 1/128
 
   local area = {
-    {deployer.position.x+X-(W/2),deployer.position.y+Y-(H/2)},
-    {deployer.position.x+X+(W/2),deployer.position.y+Y+(H/2)},
+    {deployer.position.x+X-(W/2), deployer.position.y+Y-(H/2)},
+    {deployer.position.x+X+(W/2), deployer.position.y+Y+(H/2)},
   }
 
   if deconstruct == false then
@@ -179,7 +190,7 @@ function copy_blueprint(deployer)
   if not inventory.is_empty() then return end
   for _, itemName in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
-    if get_signal_value(deployer,{name=itemName,type="item"}) >= 1 then
+    if signal_value(deployer,{name=itemName,type="item"}) >= 1 then
       -- Signal exists, now we have to search for the blueprint
       local stack = find_stack_in_network(deployer, itemName)
       if stack then
@@ -190,7 +201,7 @@ function copy_blueprint(deployer)
   end
 end
 
--- Breadth-first search for the item in the network
+-- Breadth-first search for an item in the circuit network
 -- If there are multiple items, returns the closest one (least wire hops)
 function find_stack_in_network(deployer, itemName)
   local present = {
@@ -262,7 +273,7 @@ function con_hash(entity, connector, wire)
 end
 
 -- Return integer value for given Signal: {type=, name=}
-function get_signal_value(ent, signal)
+function signal_value(ent, signal)
   if signal == nil or signal.name == nil then return 0 end
   local ent_cache = get_net_cache(ent)
   local value = 0
