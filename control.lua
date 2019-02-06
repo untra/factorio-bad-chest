@@ -22,24 +22,24 @@ function on_mods_changed()
   global.blueprint_signals = {}
   for _,item in pairs(game.item_prototypes) do
     if item.type == "blueprint" or item.type == "blueprint-book" then
-      table.insert(global.blueprint_signals, item.name)
+      table.insert(global.blueprint_signals, {name=item.name, type="item"})
     end
   end
 end
 
 function on_built(event)
-  local ent = event.created_entity
-  if not ent or not ent.valid then return end
-  if ent.name == "blueprint-deployer" then
-    table.insert(global.deployers, ent)
+  local entity = event.created_entity
+  if not entity or not entity.valid then return end
+  if entity.name == "blueprint-deployer" then
+    table.insert(global.deployers, entity)
   end
 end
 
 function on_destroyed(event)
-  local ent = event.created_entity
-  if not ent or not ent.valid then return end
-  if ent.name == "blueprint-deployer" then
-    global.net_cache[ent.unit_number] = nil
+  local entity = event.created_entity
+  if not entity or not entity.valid then return end
+  if entity.name == "blueprint-deployer" then
+    global.net_cache[entity.unit_number] = nil
   end
 end
 
@@ -54,7 +54,7 @@ function on_tick(event)
 end
 
 function on_tick_deployer(deployer)
-  local deployPrint = signal_value(deployer, DEPLOY_SIGNAL)
+  local deployPrint = get_signal(deployer, DEPLOY_SIGNAL)
   if deployPrint > 0 then
     local bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
@@ -72,14 +72,14 @@ function on_tick_deployer(deployer)
     return
   end
 
-  local deconstructArea = signal_value(deployer, DECONSTRUCT_SIGNAL)
+  local deconstructArea = get_signal(deployer, DECONSTRUCT_SIGNAL)
   if deconstructArea == -1 then
     -- Deconstruct area
-    deconstruct_area(true, deployer)
+    deconstruct_area(deployer, true)
     return
   elseif deconstructArea == 1 then
     -- Cancel deconstruction in area
-    deconstruct_area(false, deployer)
+    deconstruct_area(deployer, false)
     return
   elseif deconstructArea == -2 then
     -- Deconstruct Self
@@ -87,7 +87,7 @@ function on_tick_deployer(deployer)
     return
   end
 
-  local copy = signal_value(deployer, COPY_SIGNAL)
+  local copy = get_signal(deployer, COPY_SIGNAL)
   if copy == 1 then
     -- Copy blueprint
     copy_blueprint(deployer)
@@ -128,7 +128,7 @@ function deploy_blueprint(bp, deployer)
   end
 
   -- Rotate
-  local rotation = signal_value(deployer, ROTATE_SIGNAL)
+  local rotation = get_signal(deployer, ROTATE_SIGNAL)
   local direction = defines.direction.north
   if (rotation == 1) then
     direction = defines.direction.east
@@ -142,8 +142,8 @@ function deploy_blueprint(bp, deployer)
   end
 
   local position = {
-    x = deployer.position.x - anchorX + signal_value(deployer, X_SIGNAL),
-    y = deployer.position.y - anchorY + signal_value(deployer, Y_SIGNAL),
+    x = deployer.position.x - anchorX + get_signal(deployer, X_SIGNAL),
+    y = deployer.position.y - anchorY + get_signal(deployer, Y_SIGNAL),
   }
 
   local result = bp.build_blueprint{
@@ -163,11 +163,11 @@ function deploy_blueprint(bp, deployer)
   end
 end
 
-function deconstruct_area(deconstruct, deployer)
-  local W = signal_value(deployer, WIDTH_SIGNAL)
-  local H = signal_value(deployer, HEIGHT_SIGNAL)
-  local X = signal_value(deployer, X_SIGNAL)
-  local Y = signal_value(deployer, Y_SIGNAL)
+function deconstruct_area(deployer, deconstruct)
+  local W = get_signal(deployer, WIDTH_SIGNAL)
+  local H = get_signal(deployer, HEIGHT_SIGNAL)
+  local X = get_signal(deployer, X_SIGNAL)
+  local Y = get_signal(deployer, Y_SIGNAL)
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
@@ -202,9 +202,9 @@ end
 function copy_blueprint(deployer)
   local inventory = deployer.get_inventory(defines.inventory.chest)
   if not inventory.is_empty() then return end
-  for _, itemName in pairs(global.blueprint_signals) do
+  for _,signal in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
-    if signal_value(deployer, {name=itemName, type="item"}) >= 1 then
+    if get_signal(deployer, signal) >= 1 then
       -- Signal exists, now we have to search for the blueprint
       local stack = find_stack_in_network(deployer, itemName)
       if stack then
@@ -232,36 +232,40 @@ function find_stack_in_network(deployer, itemName)
       wire = defines.wire_type.green,
     }
   }
-  local future = {}
   local past = {}
-  while next(present) do
-    for k,p in pairs(present) do
+  local future = {}
+  while #present > 0 do
+    for key,con in pairs(present) do
       -- Search connecting wires
-      for _,f in pairs(p.entity.circuit_connection_definitions) do
+      for _,def in pairs(con.entity.circuit_connection_definitions) do
         -- Wire color and connection points must match
-        if f.target_entity.unit_number
-        and f.wire == p.wire
-        and f.source_circuit_id == p.connector then
-          local hash = con_hash(f.target_entity, f.target_circuit_id, f.wire)
+        if def.target_entity.unit_number
+        and def.wire == con.wire
+        and def.source_circuit_id == con.connector then
+          local hash = con_hash(def.target_entity, def.target_circuit_id, def.wire)
           if not past[hash] and not present[hash] and not future[hash] then
             -- Search inside the entity
-            local stack = find_stack_in_container(f.target_entity, itemName)
+            local stack = find_stack_in_container(def.target_entity, itemName)
             if stack then return stack end
 
             -- Add entity connections to future searches
             future[hash] = {
-              entity = f.target_entity,
-              connector = f.target_circuit_id,
-              wire = f.wire
+              entity = def.target_entity,
+              connector = def.target_circuit_id,
+              wire = def.wire
             }
           end
         end
       end
-      past[k] = true
+      past[key] = true
     end
     present = future
     future = {}
   end
+end
+
+function con_hash(entity, connector, wire)
+  return entity.unit_number .. "-" .. connector .. "-" .. wire
 end
 
 function find_stack_in_container(entity, itemName)
@@ -282,26 +286,22 @@ function find_stack_in_container(entity, itemName)
   end
 end
 
-function con_hash(entity, connector, wire)
-  return entity.unit_number .. "-" .. connector .. "-" .. wire
-end
-
 -- Return integer value for given Signal: {type=, name=}
-function signal_value(ent, signal)
+function get_signal(entity, signal)
   -- Cache the circuit networks to speed up performance
-  local cache = global.net_cache[ent.unit_number]
+  local cache = global.net_cache[entity.unit_number]
   if not cache then
     cache = {last_update = -1}
-    global.net_cache[ent.unit_number] = cache
+    global.net_cache[entity.unit_number] = cache
   end
   -- Try to reload empty networks once per tick
   -- Never reload valid networks
   if cache.last_update < game.tick then
     if not cache.red_network or not cache.red_network.valid then
-      cache.red_network = ent.get_circuit_network(defines.wire_type.red)
+      cache.red_network = entity.get_circuit_network(defines.wire_type.red)
     end
     if not cache.green_network or not cache.green_network.valid then
-      cache.green_network = ent.get_circuit_network(defines.wire_type.green)
+      cache.green_network = entity.get_circuit_network(defines.wire_type.green)
     end
     cache.last_update = game.tick
   end
@@ -315,7 +315,7 @@ function signal_value(ent, signal)
     value = value + cache.green_network.get_signal(signal)
   end
 
-  -- Correctly handle circuit network under/overflow
+  -- Mimic circuit network integer overflow
   if value > 2147483647 then value = value - 4294967296 end
   if value < -2147483648 then value = value + 4294967296 end
   return value;
