@@ -16,7 +16,7 @@ end
 
 function on_mods_changed()
   if not global.deployers then global.deployers = {} end
-  if not global.net_cache then global.net_cache = {} end
+  global.net_cache = {}
 
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
@@ -36,7 +36,7 @@ function on_built(event)
 end
 
 function on_destroyed(event)
-  local entity = event.created_entity
+  local entity = event.entity
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
     global.net_cache[entity.unit_number] = nil
@@ -54,8 +54,8 @@ function on_tick(event)
 end
 
 function on_tick_deployer(deployer)
-  local deployPrint = get_signal(deployer, DEPLOY_SIGNAL)
-  if deployPrint > 0 then
+  local deploy = get_signal(deployer, DEPLOY_SIGNAL)
+  if deploy > 0 then
     local bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
     if bp.is_blueprint then
@@ -64,24 +64,24 @@ function on_tick_deployer(deployer)
     elseif bp.is_blueprint_book then
       -- Deploy blueprint from book
       local inventory = bp.get_inventory(defines.inventory.item_main)
-      if deployPrint > inventory.get_item_count() then
-        deployPrint = bp.active_index
+      if deploy > inventory.get_item_count() then
+        deploy = bp.active_index
       end
-      deploy_blueprint(inventory[deployPrint], deployer)
+      deploy_blueprint(inventory[deploy], deployer)
     end
     return
   end
 
-  local deconstructArea = get_signal(deployer, DECONSTRUCT_SIGNAL)
-  if deconstructArea == -1 then
+  local deconstruct = get_signal(deployer, DECONSTRUCT_SIGNAL)
+  if deconstruct == -1 then
     -- Deconstruct area
     deconstruct_area(deployer, true)
     return
-  elseif deconstructArea == 1 then
+  elseif deconstruct == 1 then
     -- Cancel deconstruction in area
     deconstruct_area(deployer, false)
     return
-  elseif deconstructArea == -2 then
+  elseif deconstruct == -2 then
     -- Deconstruct Self
     deployer.order_deconstruction(deployer.force)
     return
@@ -109,22 +109,22 @@ function deploy_blueprint(bp, deployer)
   if not bp.is_blueprint_setup() then return end
 
   -- Find anchor point
-  local anchorEntity = nil
-  local bpEntities = bp.get_blueprint_entities()
-  if bpEntities then
-    for _,bpEntity in pairs(bpEntities) do
-      if bpEntity.name == "wooden-chest" then
-        anchorEntity = bpEntity
+  local anchor_entity = nil
+  local entities = bp.get_blueprint_entities()
+  if entities then
+    for _, entity in pairs(entities) do
+      if entity.name == "wooden-chest" then
+        anchor_entity = entity
         break
-      elseif bpEntity.name == "blueprint-deployer" and not anchorEntity then
-        anchorEntity = bpEntity
+      elseif entity.name == "blueprint-deployer" and not anchor_entity then
+        anchor_entity = entity
       end
     end
   end
-  local anchorX,anchorY = 0,0
-  if anchorEntity then
-    anchorX = anchorEntity.position.x
-    anchorY = anchorEntity.position.y
+  local anchorX, anchorY = 0, 0
+  if anchor_entity then
+    anchorX = anchor_entity.position.x
+    anchorY = anchor_entity.position.y
   end
 
   -- Rotate
@@ -206,7 +206,7 @@ function copy_blueprint(deployer)
     -- Check for a signal before doing an expensive search
     if get_signal(deployer, signal) >= 1 then
       -- Signal exists, now we have to search for the blueprint
-      local stack = find_stack_in_network(deployer, itemName)
+      local stack = find_stack_in_network(deployer, signal.name)
       if stack then
         inventory[1].set_stack(stack)
         return
@@ -217,7 +217,7 @@ end
 
 -- Breadth-first search for an item in the circuit network
 -- If there are multiple items, returns the closest one (least wire hops)
-function find_stack_in_network(deployer, itemName)
+function find_stack_in_network(deployer, item_name)
   local present = {
     [con_hash(deployer, defines.circuit_connector_id.container, defines.wire_type.red)] =
     {
@@ -234,10 +234,10 @@ function find_stack_in_network(deployer, itemName)
   }
   local past = {}
   local future = {}
-  while #present > 0 do
-    for key,con in pairs(present) do
+  while next(present) do
+    for key, con in pairs(present) do
       -- Search connecting wires
-      for _,def in pairs(con.entity.circuit_connection_definitions) do
+      for _, def in pairs(con.entity.circuit_connection_definitions) do
         -- Wire color and connection points must match
         if def.target_entity.unit_number
         and def.wire == con.wire
@@ -245,7 +245,7 @@ function find_stack_in_network(deployer, itemName)
           local hash = con_hash(def.target_entity, def.target_circuit_id, def.wire)
           if not past[hash] and not present[hash] and not future[hash] then
             -- Search inside the entity
-            local stack = find_stack_in_container(def.target_entity, itemName)
+            local stack = find_stack_in_container(def.target_entity, item_name)
             if stack then return stack end
 
             -- Add entity connections to future searches
@@ -268,11 +268,11 @@ function con_hash(entity, connector, wire)
   return entity.unit_number .. "-" .. connector .. "-" .. wire
 end
 
-function find_stack_in_container(entity, itemName)
+function find_stack_in_container(entity, item_name)
   if entity.type == "container" or entity.type == "logistic-container" then
     local inventory = entity.get_inventory(defines.inventory.chest)
     for i = 1, #inventory do
-      if inventory[i].valid_for_read and inventory[i].name == itemName then
+      if inventory[i].valid_for_read and inventory[i].name == item_name then
         return inventory[i]
       end
     end
@@ -280,7 +280,7 @@ function find_stack_in_container(entity, itemName)
     local behavior = entity.get_control_behavior()
     if not behavior then return end
     if not behavior.circuit_read_hand_contents then return end
-    if entity.held_stack.valid_for_read and entity.held_stack.name == itemName then
+    if entity.held_stack.valid_for_read and entity.held_stack.name == item_name then
       return entity.held_stack
     end
   end
@@ -322,6 +322,8 @@ function get_signal(entity, signal)
 end
 
 
+script.on_init(on_init)
+script.on_configuration_changed(on_mods_changed)
 script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_built_entity, on_built)
 script.on_event(defines.events.on_robot_built_entity, on_built)
@@ -330,5 +332,3 @@ script.on_event(defines.events.on_player_mined_entity, on_destroyed)
 script.on_event(defines.events.on_robot_mined_entity, on_destroyed)
 script.on_event(defines.events.on_entity_died, on_destroyed)
 script.on_event(defines.events.script_raised_destroy, on_destroyed)
-script.on_init(on_init)
-script.on_configuration_changed(on_mods_changed)
