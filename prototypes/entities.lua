@@ -15,7 +15,7 @@ deployer.picture.layers = {
       priority = "extra-high",
       width = 66,
       height = 72,
-      shift = util.by_pixel(0, -2),
+      shift = util.by_pixel(0, -2.5),
       scale = 0.5,
     }
   },
@@ -32,7 +32,7 @@ deployer.picture.layers = {
         shift = util.by_pixel(0.25, -17),
     },
     priority = "medium",
-    shift = util.by_pixel(0, -17),
+    shift = util.by_pixel(0, -17.5),
   },
   {
     filename = "__base__/graphics/entity/logistic-chest/logistic-chest-shadow.png",
