@@ -1,23 +1,11 @@
-data:extend{
-  {
-    type = "technology",
-    name = "recursive-blueprints",
-    icon = "__recursive-blueprints__/graphics/recursive-blueprints-technology.png",
-    icon_size = 128,
-    effects =
-    {
-      {type = "unlock-recipe", recipe = "blueprint-deployer" },
-    },
-    prerequisites = {"logistic-system"},
-    unit = {
-      count = 250,
-      ingredients = {
-        {"science-pack-1", 1},
-        {"science-pack-2", 1},
-        {"science-pack-3", 1}
-      },
-      time = 30
-    },
-    order = "c-k-d",
-  },
-}
+if data.raw.technology["construction-robotics"]
+and data.raw.technology["construction-robotics"].effects then
+  -- Construction robotics unlocks deployer chest
+  table.insert(
+    data.raw.technology["construction-robotics"].effects,
+    {type = "unlock-recipe", recipe = "blueprint-deployer"}
+  )
+else
+  -- Unlock deployer chest from the start
+  data.raw.recipe["blueprint-deployer"].enabled = true
+end

@@ -18,6 +18,13 @@ function on_mods_changed()
   if not global.deployers then global.deployers = {} end
   global.net_cache = {}
 
+  -- Construction robotics unlocks deployer chest
+  for _,force in pairs(game.forces) do
+    if force.technologies["construction-robotics"].researched then
+      force.recipes["blueprint-deployer"].enabled = true
+    end
+  end
+
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
   for _,item in pairs(game.item_prototypes) do
