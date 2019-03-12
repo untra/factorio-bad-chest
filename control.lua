@@ -10,7 +10,6 @@ local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 
 function on_init()
   global.deployers = {}
-  global.net_cache = {}
   on_mods_changed()
 end
 
@@ -28,7 +27,10 @@ function on_mods_changed()
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
   for _,item in pairs(game.item_prototypes) do
-    if item.type == "blueprint" or item.type == "blueprint-book" then
+    if item.type == "blueprint"
+    or item.type == "blueprint-book"
+--    or item.type == "upgrade-item"
+    or item.type == "deconstruction-item" then
       table.insert(global.blueprint_signals, {name=item.name, type="item"})
     end
   end
@@ -61,9 +63,10 @@ function on_tick(event)
 end
 
 function on_tick_deployer(deployer)
+  local bp = nil
   local deploy = get_signal(deployer, DEPLOY_SIGNAL)
   if deploy > 0 then
-    local bp = deployer.get_inventory(defines.inventory.chest)[1]
+    bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
     if bp.is_blueprint then
       -- Deploy blueprint
@@ -75,6 +78,25 @@ function on_tick_deployer(deployer)
         deploy = bp.active_index
       end
       deploy_blueprint(inventory[deploy], deployer)
+    elseif bp.is_deconstruction_item then
+      -- Deconstruct area
+      deconstruct_area(bp, deployer, true)
+--    elseif bp.is_upgrade_item then
+--      -- Upgrade area
+--      upgrade_area(bp, deployer, true)
+    end
+    return
+  end
+
+  if deploy == -1 then
+    bp = deployer.get_inventory(defines.inventory.chest)[1]
+    if not bp.valid_for_read then return end
+    if bp.is_deconstruction_item then
+      -- Cancel deconstruction in area
+      deconstruct_area(bp, deployer, false)
+--    elseif bp.is_upgrade_item then
+--      -- Cancel upgrade upgrade in area
+--      upgrade_area(bp, deployer, false)
     end
     return
   end
@@ -82,15 +104,15 @@ function on_tick_deployer(deployer)
   local deconstruct = get_signal(deployer, DECONSTRUCT_SIGNAL)
   if deconstruct == -1 then
     -- Deconstruct area
-    deconstruct_area(deployer, true)
-    return
-  elseif deconstruct == 1 then
-    -- Cancel deconstruction in area
-    deconstruct_area(deployer, false)
+    deconstruct_area(bp, deployer, true)
     return
   elseif deconstruct == -2 then
     -- Deconstruct Self
     deployer.order_deconstruction(deployer.force)
+    return
+  elseif deconstruct == -3 then
+    -- Cancel deconstruction in area
+    deconstruct_area(bp, deployer, false)
     return
   end
 
@@ -103,7 +125,10 @@ function on_tick_deployer(deployer)
     -- Delete blueprint
     local stack = deployer.get_inventory(defines.inventory.chest)[1]
     if not stack.valid_for_read then return end
-    if stack.is_blueprint or stack.is_blueprint_book then
+    if stack.is_blueprint
+    or stack.is_blueprint_book
+    or stack.is_upgrade_item
+    or stack.is_deconstruction_item then
       stack.clear()
     end
     return
@@ -170,11 +195,78 @@ function deploy_blueprint(bp, deployer)
   end
 end
 
-function deconstruct_area(deployer, deconstruct)
-  local W = get_signal(deployer, WIDTH_SIGNAL)
-  local H = get_signal(deployer, HEIGHT_SIGNAL)
+function deconstruct_area(bp, deployer, deconstruct)
+  local area = get_area(deployer)
+  if deconstruct == false then
+    -- Cancel Area
+    deployer.surface.cancel_deconstruct_area{
+      area = area,
+      force = deployer.force,
+      skip_fog_of_war = true,
+      item = bp,
+    }
+  else
+    -- Deconstruct Area
+    local deconstruct_self = deployer.to_be_deconstructed(deployer.force)
+    deployer.surface.deconstruct_area{
+      area = area,
+      force = deployer.force,
+      skip_fog_of_war = true,
+      item = bp,
+    }
+    if not deconstruct_self then
+       -- Don't deconstruct myself in an area order
+      deployer.cancel_deconstruction(deployer.force)
+    end
+  end
+end
+
+function upgrade_area(bp, deployer, upgrade)
+  local area = get_area(deployer)
+  local upgrade_entities = {}
+  local upgrade_items = {}
+  for i = 1, bp.mapper_count do
+    local from = bp.get_mapper(i, "from")
+    local to = bp.get_mapper(i, "to")
+    if from.name and to.name then
+      if from.type == "entity" then
+        upgrade_entities[from.name] = to.name
+      end
+      if from.type == "item" then
+        upgrade_items[from.name] = to.name
+      end
+    end
+  end
+
+  if not next(upgrade_entities) and not next(upgrade_items) then
+    if upgrade then
+      upgrade_all{
+        surface = deployer.surface,
+        force = deployer.force,
+        area = area,
+      }
+    else
+      cancel_upgrade_all{
+        surface = deployer.surface,
+        force = deployer.force,
+        area = area
+      }
+    end
+    return
+  end
+
+  if upgrade then
+    -- Upgrade Area
+  else
+    -- Cancel Area
+  end
+end
+
+function get_area(deployer)
   local X = get_signal(deployer, X_SIGNAL)
   local Y = get_signal(deployer, Y_SIGNAL)
+  local W = get_signal(deployer, WIDTH_SIGNAL)
+  local H = get_signal(deployer, HEIGHT_SIGNAL)
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
@@ -187,23 +279,10 @@ function deconstruct_area(deployer, deconstruct)
   W = W - 1/128
   H = H - 1/128
 
-  local area = {
+  return {
     {deployer.position.x+X-(W/2), deployer.position.y+Y-(H/2)},
     {deployer.position.x+X+(W/2), deployer.position.y+Y+(H/2)},
   }
-
-  if deconstruct == false then
-    -- Cancel Area
-    deployer.surface.cancel_deconstruct_area{area=area, force=deployer.force}
-  else
-    -- Deconstruct Area
-    local deconstructSelf = deployer.to_be_deconstructed(deployer.force)
-    deployer.surface.deconstruct_area{area=area, force=deployer.force}
-    if not deconstructSelf then
-       -- Don't deconstruct myself in an area order
-      deployer.cancel_deconstruction(deployer.force)
-    end
-  end
 end
 
 function copy_blueprint(deployer)
