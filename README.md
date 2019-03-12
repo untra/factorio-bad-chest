@@ -2,43 +2,46 @@ Adds a Blueprint Deployer chest which can be connected to the circuit network to
 
 Example commands:
 
-![Construction robot = 1](http://davemcw.com/factorio/images/construction-robot_1.jpg)
+![Construction robot = 1](docs/construction-robot_1.jpg)
 
 Deploy blueprint. Construction robot signal can be any value ≥ 1.
 
 ---
 
-![Construction robot = 2](http://davemcw.com/factorio/images/construction-robot_2.jpg)
+![Construction robot = 2](docs/construction-robot_2.jpg)
 
 Deploy blueprint from book. Construction robot signal selects which blueprint to use.  If it is greater than the size of the book, the active blueprint is used instead.
 
 ---
 
-![Deconstruction planner = -1](http://davemcw.com/factorio/images/deconstruction-planner_-1.jpg)
+![Construction robot = 1](docs/construction-robot_3.jpg)
 
-Deconstruct area. W = width, H = height.  The deployer chest will never deconstruct itself with this command.
+Deconstruct area. W = width, H = height. The deployer chest will never deconstruct itself with this command. Supports deconstruction filters.
 
 ---
 
-![Deconstruction planner = 1](http://davemcw.com/factorio/images/deconstruction-planner_1.jpg)
+![Construction robot = -1](docs/construction-robot_-1.jpg)
 
 Cancel deconstruction in area.
 
 ---
 
-![Deconstruction planner = -2](http://davemcw.com/factorio/images/deconstruction-planner_-2.jpg)
+![Deconstruction planner = -1](docs/deconstruction-planner.jpg)
 
-Deconstruct the deployer chest.
+Alternative deconstruction commands that do not require a deconstruction planner in the deployer chest.
+-1 = Deconstruct area.
+-2 = Deconstruct the deployer chest.
+-3 = Cancel deconstruction in area.
 
 ---
 
-![Signal C = 1](http://davemcw.com/factorio/images/signal-c1.jpg)
+![Signal C = 1](docs/signal-c-1.jpg)
 
 Copy blueprint or blueprint book. The original blueprint must be in a chest (or inserter with read hand contents) on the same circuit network as the deployer chest.
 
 ---
 
-![Signal C = -1](http://davemcw.com/factorio/images/signal-c-1.jpg)
+![Signal C = -1](docs/signal-c-2.jpg)
 
 Delete blueprint or blueprint book.
 
