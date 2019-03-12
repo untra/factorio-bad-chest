@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.17.0
-Date: 06. 02. 2019
+Date: 2019-03-12
   Features:
     - Compatible with Factorio 0.17.
     - High resolution deployer chest graphics.
@@ -12,12 +12,12 @@ Date: 06. 02. 2019
     - Deployer chest recipe moved to the same tab as logistics chests.
 ---------------------------------------------------------------------------------------------------
 Version: 0.16.6
-Date: 06. 02. 2019
+Date: 2019-02-06
   Bugfixes:
     - net_cache garbage collection actually works.
 ---------------------------------------------------------------------------------------------------
 Version: 0.16.5
-Date: 11. 12. 2018
+Date: 2018-12-11
   Changes:
     - Added net_cache to global to fix possible desync.
     - Added net_cache garbage collection.
