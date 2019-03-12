@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.17.0
+Date: 06. 02. 2019
+  Features:
+    - Compatible with Factorio 0.17.
+    - High resolution deployer chest graphics.
+    - Filtered deconstruction planner
+  Changes:
+    - Cancel deconstruction command changed to "deconstruction-planner = -3".
+    - Deployer chest now unlocks with tech Construction robotics.
+    - Deployer chest recipe changed to match logistics chests.
+    - Deployer chest recipe moved to the same tab as logistics chests.
+---------------------------------------------------------------------------------------------------
 Version: 0.16.6
 Date: 06. 02. 2019
   Bugfixes:
