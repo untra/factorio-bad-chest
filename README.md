@@ -29,8 +29,11 @@ Cancel deconstruction in area.
 ![Deconstruction planner = -1](docs/deconstruction-planner.jpg)
 
 Alternative deconstruction commands that do not require a deconstruction planner in the deployer chest.
+
 -1 = Deconstruct area.
+
 -2 = Deconstruct the deployer chest.
+
 -3 = Cancel deconstruction in area.
 
 ---
