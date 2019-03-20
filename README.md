@@ -16,13 +16,13 @@ Deploy blueprint from book. Construction robot signal selects which blueprint to
 
 ![Construction robot = 1](docs/construction-robot_3.jpg)
 
-Deconstruct area. W = width, H = height. Supports deconstruction filters. The deployer chest will never deconstruct itself with this command.
+Deconstruct or upgrade area. W = width, H = height. Supports deconstruction filters. The deployer chest will never deconstruct itself with this command.
 
 ---
 
 ![Construction robot = -1](docs/construction-robot_-1.jpg)
 
-Cancel deconstruction in area.
+Cancel deconstruction or upgrades in area.
 
 ---
 

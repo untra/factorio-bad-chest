@@ -29,7 +29,7 @@ function on_mods_changed()
   for _,item in pairs(game.item_prototypes) do
     if item.type == "blueprint"
     or item.type == "blueprint-book"
---    or item.type == "upgrade-item"
+    or item.type == "upgrade-item"
     or item.type == "deconstruction-item" then
       table.insert(global.blueprint_signals, {name=item.name, type="item"})
     end
@@ -81,9 +81,9 @@ function on_tick_deployer(deployer)
     elseif bp.is_deconstruction_item then
       -- Deconstruct area
       deconstruct_area(bp, deployer, true)
---    elseif bp.is_upgrade_item then
---      -- Upgrade area
---      upgrade_area(bp, deployer, true)
+    elseif bp.is_upgrade_item then
+      -- Upgrade area
+      upgrade_area(bp, deployer, true)
     end
     return
   end
@@ -94,9 +94,9 @@ function on_tick_deployer(deployer)
     if bp.is_deconstruction_item then
       -- Cancel deconstruction in area
       deconstruct_area(bp, deployer, false)
---    elseif bp.is_upgrade_item then
---      -- Cancel upgrade upgrade in area
---      upgrade_area(bp, deployer, false)
+    elseif bp.is_upgrade_item then
+      -- Cancel upgrade upgrade in area
+      upgrade_area(bp, deployer, false)
     end
     return
   end
@@ -223,42 +223,22 @@ end
 
 function upgrade_area(bp, deployer, upgrade)
   local area = get_area(deployer)
-  local upgrade_entities = {}
-  local upgrade_items = {}
-  for i = 1, bp.mapper_count do
-    local from = bp.get_mapper(i, "from")
-    local to = bp.get_mapper(i, "to")
-    if from.name and to.name then
-      if from.type == "entity" then
-        upgrade_entities[from.name] = to.name
-      end
-      if from.type == "item" then
-        upgrade_items[from.name] = to.name
-      end
-    end
-  end
-
-  if not next(upgrade_entities) and not next(upgrade_items) then
-    if upgrade then
-      upgrade_all{
-        surface = deployer.surface,
-        force = deployer.force,
-        area = area,
-      }
-    else
-      cancel_upgrade_all{
-        surface = deployer.surface,
-        force = deployer.force,
-        area = area
-      }
-    end
-    return
-  end
-
-  if upgrade then
-    -- Upgrade Area
+  if upgrade == false then
+    -- Cancel area
+    deployer.surface.cancel_upgrade_area{
+      area = area,
+      force = deployer.force,
+      skip_fog_of_war = true,
+      item = bp,
+    }
   else
-    -- Cancel Area
+    -- Upgrade area
+    deployer.surface.upgrade_area{
+      area = area,
+      force = deployer.force,
+      skip_fog_of_war = true,
+      item = bp,
+    }
   end
 end
 
