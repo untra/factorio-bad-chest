@@ -202,7 +202,7 @@ function deconstruct_area(bp, deployer, deconstruct)
     deployer.surface.cancel_deconstruct_area{
       area = area,
       force = deployer.force,
-      skip_fog_of_war = true,
+      skip_fog_of_war = false,
       item = bp,
     }
   else
@@ -211,7 +211,7 @@ function deconstruct_area(bp, deployer, deconstruct)
     deployer.surface.deconstruct_area{
       area = area,
       force = deployer.force,
-      skip_fog_of_war = true,
+      skip_fog_of_war = false,
       item = bp,
     }
     if not deconstruct_self then
@@ -228,7 +228,7 @@ function upgrade_area(bp, deployer, upgrade)
     deployer.surface.cancel_upgrade_area{
       area = area,
       force = deployer.force,
-      skip_fog_of_war = true,
+      skip_fog_of_war = false,
       item = bp,
     }
   else
@@ -236,7 +236,7 @@ function upgrade_area(bp, deployer, upgrade)
     deployer.surface.upgrade_area{
       area = area,
       force = deployer.force,
-      skip_fog_of_war = true,
+      skip_fog_of_war = false,
       item = bp,
     }
   end
