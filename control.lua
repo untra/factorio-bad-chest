@@ -37,7 +37,7 @@ function on_mods_changed()
 end
 
 function on_built(event)
-  local entity = event.created_entity
+  local entity = event.created_entity or event.entity
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
     table.insert(global.deployers, entity)

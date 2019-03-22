@@ -1,20 +1,25 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.17.3
+Date: 2019-03-22
+  Bugfixes:
+    - Handles script_raised_revive correctly.
+---------------------------------------------------------------------------------------------------
 Version: 0.17.2
 Date: 2019-03-21
   Bugfixes:
-    - Now works in fog of war
+    - Now works in fog of war.
 ---------------------------------------------------------------------------------------------------
 Version: 0.17.1
 Date: 2019-03-20
   Features:
-    - Upgrade planner
+    - Upgrade planner.
 ---------------------------------------------------------------------------------------------------
 Version: 0.17.0
 Date: 2019-03-12
   Features:
     - Compatible with Factorio 0.17.
     - High resolution deployer chest graphics.
-    - Filtered deconstruction planner
+    - Filtered deconstruction planner.
   Changes:
     - Cancel deconstruction command changed to "deconstruction-planner = -3".
     - Deployer chest now unlocks with tech Construction robotics.
