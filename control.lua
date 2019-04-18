@@ -187,10 +187,9 @@ function deploy_blueprint(bp, deployer)
   }
 
   for _, entity in pairs(result) do
-    script.raise_event(defines.events.on_robot_built_entity, {
+    script.raise_event(defines.events.script_raised_built, {
       created_entity = entity,
       stack = bp,
-      robot = {valid = false, type = "container", name = "blueprint-deployer"},
     })
   end
 end
