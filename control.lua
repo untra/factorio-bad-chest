@@ -188,7 +188,7 @@ function deploy_blueprint(bp, deployer)
 
   for _, entity in pairs(result) do
     script.raise_event(defines.events.script_raised_built, {
-      created_entity = entity,
+      entity = entity,
       stack = bp,
     })
   end
