@@ -178,6 +178,14 @@ function deploy_blueprint(bp, deployer)
     y = deployer.position.y - anchorY + get_signal(deployer, Y_SIGNAL),
   }
 
+  -- Check for building out of bounds
+  if position.x > 1000000
+  or position.x < -1000000
+  or position.y > 1000000
+  or position.y < -1000000 then
+    return
+  end
+
   local result = bp.build_blueprint{
     surface = deployer.surface,
     force = deployer.force,
