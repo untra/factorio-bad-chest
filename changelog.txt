@@ -1,5 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.17.7
+Date: 2019-08-26
+  Bugfixes:
+    - Now supports on_entity_cloned.
+---------------------------------------------------------------------------------------------------
+Version: 0.17.7
 Date: 2019-07-03
   Bugfixes:
     - Will not deploy blueprints more than 1000000 tiles from the start position.
