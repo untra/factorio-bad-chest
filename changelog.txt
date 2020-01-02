@@ -1,5 +1,10 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.17.7
+Version: 0.17.9
+Date: 2020-01-02
+  Features:
+    - Added option to use X,Y as the top left position for deconstruction and upgrades.
+---------------------------------------------------------------------------------------------------
+Version: 0.17.8
 Date: 2019-08-26
   Bugfixes:
     - Now supports on_entity_cloned.
