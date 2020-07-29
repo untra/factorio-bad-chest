@@ -400,16 +400,19 @@ function get_signal(entity, signal)
   return value
 end
 
-
+-- Global events
 script.on_init(on_init)
 script.on_configuration_changed(on_mods_changed)
 script.on_event(defines.events.on_tick, on_tick)
-script.on_event(defines.events.on_built_entity, on_built)
-script.on_event(defines.events.on_robot_built_entity, on_built)
-script.on_event(defines.events.on_entity_cloned, on_built)
-script.on_event(defines.events.script_raised_built, on_built)
-script.on_event(defines.events.script_raised_revive, on_built)
-script.on_event(defines.events.on_player_mined_entity, on_destroyed)
-script.on_event(defines.events.on_robot_mined_entity, on_destroyed)
-script.on_event(defines.events.on_entity_died, on_destroyed)
-script.on_event(defines.events.script_raised_destroy, on_destroyed)
+
+-- Deployer chest events
+local filter = {{filter = "name", name = "blueprint-deployer"}}
+script.on_event(defines.events.on_built_entity, on_built, filter)
+script.on_event(defines.events.on_robot_built_entity, on_built, filter)
+script.on_event(defines.events.on_entity_cloned, on_built, filter)
+script.on_event(defines.events.script_raised_built, on_built, filter)
+script.on_event(defines.events.script_raised_revive, on_built, filter)
+script.on_event(defines.events.on_player_mined_entity, on_destroyed, filter)
+script.on_event(defines.events.on_robot_mined_entity, on_destroyed, filter)
+script.on_event(defines.events.on_entity_died, on_destroyed, filter)
+script.on_event(defines.events.script_raised_destroy, on_destroyed, filter)
