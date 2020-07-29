@@ -68,16 +68,20 @@ function on_tick_deployer(deployer)
   if deploy > 0 then
     bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
-    if bp.is_blueprint then
-      -- Deploy blueprint
-      deploy_blueprint(bp, deployer)
-    elseif bp.is_blueprint_book then
-      -- Deploy blueprint from book
+
+    if bp.is_blueprint_book then
+      -- Pick item from blueprint book
       local inventory = bp.get_inventory(defines.inventory.item_main)
       if deploy > inventory.get_item_count() then
         deploy = bp.active_index
       end
-      deploy_blueprint(inventory[deploy], deployer)
+      bp = inventory[deploy]
+      if not bp.valid_for_read then return end
+    end
+
+    if bp.is_blueprint then
+      -- Deploy blueprint
+      deploy_blueprint(bp, deployer)
     elseif bp.is_deconstruction_item then
       -- Deconstruct area
       deconstruct_area(bp, deployer, true)

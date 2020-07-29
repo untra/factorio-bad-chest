@@ -1,7 +1,9 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.0
 Date: 2020-07-29
-  Changes:
+  Features:
+    - Supports deconstruction planner in blueprint book.
+    - Supports upgrade planner in blueprint book.
     - Added event filters to improve performance.
 ---------------------------------------------------------------------------------------------------
 Version: 0.18.0
