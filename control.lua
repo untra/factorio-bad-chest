@@ -72,7 +72,9 @@ function on_tick_deployer(deployer)
     if bp.is_blueprint_book then
       -- Pick item from blueprint book
       local inventory = bp.get_inventory(defines.inventory.item_main)
-      if deploy > inventory.get_item_count() then
+      local size = inventory.get_item_count()
+      if size < 1 then return end
+      if deploy > size then
         deploy = bp.active_index
       end
       bp = inventory[deploy]
