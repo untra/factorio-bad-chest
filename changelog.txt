@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.18.0
+Version: 0.18.1
 Date: 2020-07-29
   Features:
     - Supports deconstruction planner in blueprint book.
