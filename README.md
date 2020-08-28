@@ -54,6 +54,6 @@ X and Y signals shift the position of the construction/deconstruction order.
 
 R signal rotates the blueprint. R = 1 = 90° clockwise, R = 2 = 180°, R = 3 = 90° counterclockwise.
 
-Blueprints are centered on: 1) The first wooden chest in the blueprint, 2) The first deployer chest in the blueprint, 3) The center of the blueprint.
+To change the center of the blueprint, enable 1x1 grid size and set an absolute reference point.
 
 Deconstruction and upgrades use X,Y as the center of the area. This can be changed to the top left corner of the area in mod settings.
