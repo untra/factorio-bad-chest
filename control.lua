@@ -26,7 +26,7 @@ function on_mods_changed()
 
   -- Collect all modded blueprint signals in one table
   global.blueprint_signals = {}
-  for _,item in pairs(game.item_prototypes) do
+  for _, item in pairs(game.item_prototypes) do
     if item.type == "blueprint"
     or item.type == "blueprint-book"
     or item.type == "upgrade-item"
@@ -41,14 +41,6 @@ function on_built(event)
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
     table.insert(global.deployers, entity)
-  end
-end
-
-function on_destroyed(event)
-  local entity = event.entity
-  if not entity or not entity.valid then return end
-  if entity.name == "blueprint-deployer" then
-    global.net_cache[entity.unit_number] = nil
   end
 end
 
@@ -101,7 +93,7 @@ function on_tick_deployer(deployer)
       -- Cancel deconstruction in area
       deconstruct_area(bp, deployer, false)
     elseif bp.is_upgrade_item then
-      -- Cancel upgrade upgrade in area
+      -- Cancel upgrade in area
       upgrade_area(bp, deployer, false)
     end
     return
@@ -113,7 +105,7 @@ function on_tick_deployer(deployer)
     deconstruct_area(bp, deployer, true)
     return
   elseif deconstruct == -2 then
-    -- Deconstruct Self
+    -- Deconstruct self
     deployer.order_deconstruction(deployer.force)
     return
   elseif deconstruct == -3 then
@@ -146,42 +138,21 @@ function deploy_blueprint(bp, deployer)
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
 
-  -- Find anchor point
-  local anchor_entity = nil
-  local entities = bp.get_blueprint_entities()
-  if entities then
-    for _, entity in pairs(entities) do
-      if entity.name == "wooden-chest" then
-        anchor_entity = entity
-        break
-      elseif entity.name == "blueprint-deployer" and not anchor_entity then
-        anchor_entity = entity
-      end
-    end
-  end
-  local anchorX, anchorY = 0, 0
-  if anchor_entity then
-    anchorX = anchor_entity.position.x
-    anchorY = anchor_entity.position.y
-  end
-
   -- Rotate
   local rotation = get_signal(deployer, ROTATE_SIGNAL)
   local direction = defines.direction.north
   if (rotation == 1) then
     direction = defines.direction.east
-    anchorX, anchorY = -anchorY, anchorX
   elseif (rotation == 2) then
     direction = defines.direction.south
-    anchorX, anchorY = -anchorX, -anchorY
   elseif (rotation == 3) then
     direction = defines.direction.west
-    anchorX, anchorY = anchorY, -anchorX
   end
 
+  -- Shift x,y coordinates
   local position = {
-    x = deployer.position.x - anchorX + get_signal(deployer, X_SIGNAL),
-    y = deployer.position.y - anchorY + get_signal(deployer, Y_SIGNAL),
+    x = deployer.position.x + get_signal(deployer, X_SIGNAL),
+    y = deployer.position.y + get_signal(deployer, Y_SIGNAL),
   }
 
   -- Check for building out of bounds
@@ -211,7 +182,7 @@ end
 function deconstruct_area(bp, deployer, deconstruct)
   local area = get_area(deployer)
   if deconstruct == false then
-    -- Cancel Area
+    -- Cancel area
     deployer.surface.cancel_deconstruct_area{
       area = area,
       force = deployer.force,
@@ -219,7 +190,7 @@ function deconstruct_area(bp, deployer, deconstruct)
       item = bp,
     }
   else
-    -- Deconstruct Area
+    -- Deconstruct area
     local deconstruct_self = deployer.to_be_deconstructed(deployer.force)
     deployer.surface.deconstruct_area{
       area = area,
@@ -418,7 +389,3 @@ script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.on_entity_cloned, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
-script.on_event(defines.events.on_player_mined_entity, on_destroyed, filter)
-script.on_event(defines.events.on_robot_mined_entity, on_destroyed, filter)
-script.on_event(defines.events.on_entity_died, on_destroyed, filter)
-script.on_event(defines.events.script_raised_destroy, on_destroyed, filter)

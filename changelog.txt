@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2020-08-28
+  Features:
+    - Supports absolute reference point.
+    - Removed wooden chest and deployer chest anchor points.
+---------------------------------------------------------------------------------------------------
 Version: 0.18.1
 Date: 2020-07-29
   Features:
