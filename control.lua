@@ -18,7 +18,7 @@ function on_mods_changed()
   global.net_cache = {}
 
   -- Construction robotics unlocks deployer chest
-  for _,force in pairs(game.forces) do
+  for _, force in pairs(game.forces) do
     if force.technologies["construction-robotics"].researched then
       force.recipes["blueprint-deployer"].enabled = true
     end
@@ -258,7 +258,7 @@ end
 function copy_blueprint(deployer)
   local inventory = deployer.get_inventory(defines.inventory.chest)
   if not inventory.is_empty() then return end
-  for _,signal in pairs(global.blueprint_signals) do
+  for _, signal in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
     if get_signal(deployer, signal) >= 1 then
       -- Signal exists, now we have to search for the blueprint
