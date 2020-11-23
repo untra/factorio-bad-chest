@@ -44,7 +44,7 @@ function on_built(event)
   end
 end
 
-function on_tick(event)
+function on_tick()
   for key, deployer in pairs(global.deployers) do
     if deployer.valid then
       on_tick_deployer(deployer)
