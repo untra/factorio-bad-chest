@@ -1,8 +1,6 @@
 local deployer = table.deepcopy(data.raw["container"]["steel-chest"])
 deployer.name = "blueprint-deployer"
 deployer.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
-deployer.icon_size = 32
-deployer.icons = nil
 deployer.minable.result = "blueprint-deployer"
 deployer.inventory_size = 1
 deployer.picture.layers = {
