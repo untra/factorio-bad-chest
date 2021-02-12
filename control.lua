@@ -322,6 +322,7 @@ function find_stack_in_network(deployer, item_name)
   end
 end
 
+-- Create a unique key for a circuit connector
 function con_hash(entity, connector, wire)
   return entity.unit_number .. "-" .. connector .. "-" .. wire
 end
@@ -336,10 +337,10 @@ function find_stack_in_container(entity, item_name)
     end
   elseif entity.type == "inserter" then
     local behavior = entity.get_control_behavior()
-    if not behavior then return end
-    if not behavior.circuit_read_hand_contents then return end
-    if not entity.held_stack.valid_for_read then return end
-    if entity.held_stack.name == item_name then
+    if behavior
+    and behavior.circuit_read_hand_contents
+    and entity.held_stack.valid_for_read
+    and entity.held_stack.name == item_name then
       return entity.held_stack
     end
   end
