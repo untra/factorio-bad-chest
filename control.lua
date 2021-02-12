@@ -14,7 +14,6 @@ function on_init()
 end
 
 function on_mods_changed()
-  if not global.deployers then global.deployers = {} end
   global.net_cache = {}
 
   -- Construction robotics unlocks deployer chest
@@ -163,6 +162,7 @@ function deploy_blueprint(bp, deployer)
     return
   end
 
+  -- Build blueprint
   local result = bp.build_blueprint{
     surface = deployer.surface,
     force = deployer.force,
@@ -171,9 +171,10 @@ function deploy_blueprint(bp, deployer)
     force_build = true,
   }
 
-  for _, entity in pairs(result) do
+  -- Raise event for ghosts created
+  for _, ghost in pairs(result) do
     script.raise_event(defines.events.script_raised_built, {
-      entity = entity,
+      entity = ghost,
       stack = bp,
     })
   end
@@ -245,13 +246,14 @@ function get_area(deployer)
   if W % 2 == 0 then X = X + 0.5 end
   if H % 2 == 0 then Y = Y + 0.5 end
 
-  -- Subtract 1 pixel from edges to avoid tile overlap
-  W = W - 1/128
-  H = H - 1/128
+  -- Subtract 1 pixel from the edges to avoid tile overlap
+  -- 2 / 256 = 0.0078125
+  W = W - 0.0078125
+  H = H - 0.0078125
 
   return {
-    {deployer.position.x+X-(W/2), deployer.position.y+Y-(H/2)},
-    {deployer.position.x+X+(W/2), deployer.position.y+Y+(H/2)},
+    {deployer.position.x + X - W/2, deployer.position.y + Y - H/2},
+    {deployer.position.x + X + W/2, deployer.position.y + Y + H/2},
   }
 end
 
@@ -336,7 +338,8 @@ function find_stack_in_container(entity, item_name)
     local behavior = entity.get_control_behavior()
     if not behavior then return end
     if not behavior.circuit_read_hand_contents then return end
-    if entity.held_stack.valid_for_read and entity.held_stack.name == item_name then
+    if not entity.held_stack.valid_for_read then return end
+    if entity.held_stack.name == item_name then
       return entity.held_stack
     end
   end
