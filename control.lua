@@ -60,15 +60,22 @@ function on_tick_deployer(deployer)
     bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
 
+    -- Pick item from blueprint book
     if bp.is_blueprint_book then
-      -- Pick item from blueprint book
       local inventory = bp.get_inventory(defines.inventory.item_main)
-      local size = inventory.get_item_count()
+      local size = inventory.get_item_count() + inventory.count_empty_stacks()
       if size < 1 then return end
       if deploy > size then
         deploy = bp.active_index
       end
       bp = inventory[deploy]
+      if not bp.valid_for_read then return end
+    end
+
+    -- Pick active item from nested blueprint books
+    while bp.is_blueprint_book do
+      if not bp.active_index then return end
+      bp = bp.get_inventory(defines.inventory.item_main)[bp.active_index]
       if not bp.valid_for_read then return end
     end
 
