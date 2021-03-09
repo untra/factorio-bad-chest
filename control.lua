@@ -10,11 +10,14 @@ local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 
 function on_init()
   global.deployers = {}
+  global.fuel_requests = {}
   on_mods_changed()
 end
 
 function on_mods_changed()
   global.net_cache = {}
+  global.tag_cache = {}
+  if not global.fuel_requests then global.fuel_requests = {} end
 
   -- Construction robotics unlocks deployer chest
   for _, force in pairs(game.forces) do
@@ -40,6 +43,8 @@ function on_built(event)
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
     table.insert(global.deployers, entity)
+  elseif entity.train then
+    on_built_carriage(entity, event.tags)
   end
 end
 
@@ -51,6 +56,7 @@ function on_tick()
       global.deployers[key] = nil
     end
   end
+  update_fuel_request()
 end
 
 function on_tick_deployer(deployer)
@@ -73,11 +79,8 @@ function on_tick_deployer(deployer)
     end
 
     -- Pick active item from nested blueprint books
-    while bp.is_blueprint_book do
-      if not bp.active_index then return end
-      bp = bp.get_inventory(defines.inventory.item_main)[bp.active_index]
-      if not bp.valid_for_read then return end
-    end
+    bp = get_nested_blueprint(bp)
+    if not bp or not bp.valid_for_read then return end
 
     if bp.is_blueprint then
       -- Deploy blueprint
@@ -334,6 +337,11 @@ function con_hash(entity, connector, wire)
   return entity.unit_number .. "-" .. connector .. "-" .. wire
 end
 
+-- Create a unique key for a blueprint entity
+function pos_hash(entity, x_offset, y_offset)
+  return entity.name .. "_" .. (entity.position.x + x_offset) .. "_" .. (entity.position.y + y_offset)
+end
+
 function find_stack_in_container(entity, item_name)
   if entity.type == "container" or entity.type == "logistic-container" then
     local inventory = entity.get_inventory(defines.inventory.chest)
@@ -388,15 +396,256 @@ function get_signal(entity, signal)
   return value
 end
 
+function get_nested_blueprint(bp)
+  if not bp then return end
+  if not bp.valid_for_read then return end
+  while bp.is_blueprint_book do
+    if not bp.active_index then return end
+    bp = bp.get_inventory(defines.inventory.item_main)[bp.active_index]
+    if not bp.valid_for_read then return end
+  end
+  return bp
+end
+
+function on_built_carriage(entity, tags)
+  -- Check for automatic mode tag
+  if tags and tags.manual_mode ~= nil and tags.manual_mode == false then
+    -- Wait for the entire train to be built
+    if tags.train_length == #entity.train.carriages then
+      -- Turn on automatic mode
+      enable_automatic_mode(entity.train)
+    end
+  end
+end
+
+function update_fuel_request()
+  -- Check one fuel request per tick
+  local index = global.fuel_request_index
+  global.fuel_request_index = next(global.fuel_requests, global.fuel_request_index)
+  local request = global.fuel_requests[index]
+  if not request then return end
+
+  if not request.proxy.valid or not request.entity.valid then
+    -- Remove fuel request from cache
+    global.fuel_requests[index] = nil
+  end
+
+  if not request.proxy.valid and request.entity.valid then
+    -- The request has completed, we can turn on automatic mode now!
+    enable_automatic_mode(request.entity.train)
+  end
+end
+
+function enable_automatic_mode(train)
+  -- Train is already driving
+  if train.speed ~= 0 then return end
+  if not train.manual_mode then return end
+
+  -- Train is marked for deconstruction
+  for _, carriage in pairs(train.carriages) do
+    if carriage.to_be_deconstructed(carriage.force) then
+      return
+    end
+  end
+
+  -- Train is waiting for fuel
+  for _, carriage in pairs(train.carriages) do
+    local requests = carriage.surface.find_entities_filtered{
+      type = "item-request-proxy",
+      position = carriage.position,
+    }
+    for _, request in pairs(requests) do
+      if request.proxy_target == carriage then
+        global.fuel_requests[carriage.unit_number] = {
+          entity = carriage,
+          proxy = request,
+        }
+        return
+      end
+    end
+  end
+
+  -- Turn on automatic mode
+  train.manual_mode = false
+end
+
+-- Add automatic mode tags to blueprint
+function on_player_setup_blueprint(event)
+  -- Discard old tags
+  global.tag_cache[event.player_index] = nil
+
+  -- Search the selected area for trains
+  local player = game.players[event.player_index]
+  local entities = player.surface.find_entities_filtered {
+    area = event.area,
+    force = player.force,
+    type = {"locomotive", "cargo-wagon", "fluid-wagon", "artillery-wagon", "straight-rail", "curved-rail"},
+  }
+
+  -- Check for trains in automatic mode
+  local found_train = false
+  for _, entity in pairs(entities) do
+    if entity.type == "locomotive" and not entity.train.manual_mode then
+      found_train = true
+      break
+    end
+  end
+  if not found_train then return end
+
+  -- Add automatic mode tags to blueprint
+  local tags = create_tags(entities)
+  local bp = get_nested_blueprint(player.cursor_stack)
+  if bp and bp.valid_for_read and bp.is_blueprint then
+    add_tags_to_blueprint(tags, bp)
+  else
+    -- They are editing a new blueprint and we can't access it
+    -- Save the tags and add them later
+    global.tag_cache[event.player_index] = tags
+  end
+end
+
+function on_player_configured_blueprint(event)
+  -- Finally, we can access the blueprint!
+  -- Add automatic mode tags to blueprint
+  local tags = global.tag_cache[event.player_index]
+  local bp = get_nested_blueprint(game.players[event.player_index].cursor_stack)
+  if tags and bp and bp.valid_for_read and bp.is_blueprint then
+    add_tags_to_blueprint(global.tag_cache[event.player_index], bp)
+  end
+
+  -- Discard old tags
+  global.tag_cache[event.player_index] = nil
+end
+
+function on_gui_opened(event)
+  -- Discard old tags when a different blueprint is opened
+  if event.gui_type == defines.gui_type.item
+  and event.item
+  and event.item.valid_for_read
+  and event.item.is_blueprint then
+    global.tag_cache[event.player_index] = nil
+  end
+end
+
+-- Create automatic mode tags for each train
+function create_tags(entities)
+  local result = {}
+  for _, entity in pairs(entities) do
+    local tag = {
+      name = entity.name,
+      position = entity.position,
+    }
+
+    -- Write the automatic mode tag
+    -- Also save the train length, to tell when the train is finished building
+    if entity.train and not entity.train.manual_mode then
+      tag.automatic_mode = true
+      tag.length = #entity.train.carriages
+    end
+
+    -- Save the entity even if it is not a train in automatic mode
+    -- This ensures that the offset is calculated correctly
+    result[pos_hash(entity, 0, 0)] = tag
+  end
+  return result
+end
+
+function add_tags_to_blueprint(tags, blueprint)
+  if not tags then return end
+  if next(tags) == nil then return end
+  if not blueprint then return end
+  if not blueprint.is_blueprint_setup() then return end
+  local blueprint_entities = blueprint.get_blueprint_entities()
+  if #blueprint_entities < 1 then return end
+
+  -- Calculate offset
+  local offset = calculate_offset(tags, blueprint_entities)
+  if not offset then return end
+
+  -- Search for matching train carriages
+  local found = false
+  for _, entity in pairs(blueprint_entities) do
+    local carriage = tags[pos_hash(entity, offset.x, offset.y)]
+    if carriage and carriage.automatic_mode then
+      -- Add tags to the blueprint entity
+      if not entity.tags then
+        entity.tags = {}
+      end
+      entity.tags.manual_mode = false
+      entity.tags.train_length = carriage.length
+      found = true
+    end
+  end
+
+  -- Update blueprint
+  if found then
+    blueprint.set_blueprint_entities(blueprint_entities)
+  end
+end
+
+-- Calculate the position offset between two sets of entities
+-- Returns nil if the two sets cannot be aligned
+-- Requires that table1's keys are generated using pos_hash()
+function calculate_offset(table1, table2)
+  -- Scan table 1
+  local table1_names = {}
+  for _, entity in pairs(table1) do
+    -- Build index of entity names
+    table1_names[entity.name] = true
+  end
+
+  -- Scan table 2
+  local total = 0
+  local anchor = nil
+  local found_locomotive = false
+  for _, entity in pairs(table2) do
+    if table1_names[entity.name] then
+      -- Count appearances
+      total = total + 1
+      -- Pick an anchor entity to compare with table 1
+      if not anchor then anchor = entity end
+    end
+  end
+
+  for _, entity in pairs(table1) do
+    if anchor.name == entity.name then
+      -- Calculate the offset to an entity in table 1
+      local x_offset = entity.position.x - anchor.position.x
+      local y_offset = entity.position.y - anchor.position.y
+
+      -- Check if the offset works for every entity in table 2
+      local count = 0
+      for _, entity in pairs(table2) do
+        if table1[pos_hash(entity, x_offset, y_offset)] then
+          count = count + 1
+        end
+      end
+      if count == total then
+        return {x = x_offset, y = y_offset}
+      end
+    end
+  end
+end
+
+
 -- Global events
 script.on_init(on_init)
 script.on_configuration_changed(on_mods_changed)
 script.on_event(defines.events.on_tick, on_tick)
+script.on_event(defines.events.on_gui_opened, on_gui_opened)
+script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
+script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 
--- Deployer chest events
-local filter = {{filter = "name", name = "blueprint-deployer"}}
+-- Filter events for deployer chest and trains
+local filter = {
+  {filter = "name", name = "blueprint-deployer"},
+  {filter = "type", type = "locomotive"},
+  {filter = "type", type = "cargo-wagon"},
+  {filter = "type", type = "fluid-wagon"},
+  {filter = "type", type = "artillery-wagon"},
+}
 script.on_event(defines.events.on_built_entity, on_built, filter)
-script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.on_entity_cloned, on_built, filter)
+script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
