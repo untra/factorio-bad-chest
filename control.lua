@@ -430,7 +430,7 @@ function update_fuel_request()
     global.fuel_requests[index] = nil
   end
 
-  if not request.proxy.valid and request.entity.valid then
+  if not request.proxy.valid and request.entity.valid and request.entity.train then
     -- The request has completed, we can turn on automatic mode now!
     enable_automatic_mode(request.entity.train)
   end
@@ -556,6 +556,7 @@ function add_tags_to_blueprint(tags, blueprint)
   if not blueprint then return end
   if not blueprint.is_blueprint_setup() then return end
   local blueprint_entities = blueprint.get_blueprint_entities()
+  if not blueprint_entities then return end
   if #blueprint_entities < 1 then return end
 
   -- Calculate offset
