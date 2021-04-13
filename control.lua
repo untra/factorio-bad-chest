@@ -598,7 +598,6 @@ function calculate_offset(table1, table2)
   -- Scan table 2
   local total = 0
   local anchor = nil
-  local found_locomotive = false
   for _, entity in pairs(table2) do
     if table1_names[entity.name] then
       -- Count appearances
@@ -607,6 +606,7 @@ function calculate_offset(table1, table2)
       if not anchor then anchor = entity end
     end
   end
+  if not anchor then return end
 
   for _, entity in pairs(table1) do
     if anchor.name == entity.name then
