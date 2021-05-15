@@ -14,10 +14,22 @@ function on_init()
   on_mods_changed()
 end
 
-function on_mods_changed()
+function on_mods_changed(event)
   global.net_cache = {}
   global.tag_cache = {}
-  if not global.fuel_requests then global.fuel_requests = {} end
+
+  -- Migration for fuel requests
+  if event
+  and event.mod_changes["recursive-blueprints"].old_version
+  and event.mod_changes["recursive-blueprints"].old_version < "1.1.5" then
+    local new_fuel_requests = {}
+    for _, request in pairs(global.fuel_requests or {}) do
+      if request.proxy and request.proxy.valid then
+        new_fuel_requests[request.proxy.unit_number] = request.entity
+      end
+    end
+    global.fuel_requests = new_fuel_requests
+  end
 
   -- Construction robotics unlocks deployer chest
   for _, force in pairs(game.forces) do
@@ -56,7 +68,6 @@ function on_tick()
       global.deployers[key] = nil
     end
   end
-  update_fuel_request()
 end
 
 function on_tick_deployer(deployer)
@@ -418,21 +429,12 @@ function on_built_carriage(entity, tags)
   end
 end
 
-function update_fuel_request()
-  -- Check one fuel request per tick
-  local index = global.fuel_request_index
-  global.fuel_request_index = next(global.fuel_requests, global.fuel_request_index)
-  local request = global.fuel_requests[index]
-  if not request then return end
-
-  if not request.proxy.valid or not request.entity.valid then
-    -- Remove fuel request from cache
-    global.fuel_requests[index] = nil
-  end
-
-  if not request.proxy.valid and request.entity.valid and request.entity.train then
-    -- The request has completed, we can turn on automatic mode now!
-    enable_automatic_mode(request.entity.train)
+function on_entity_destroyed(event)
+  -- Look for completed train fuel item-request-proxy
+  local carriage = global.fuel_requests[event.unit_number]
+  global.fuel_requests[event.unit_number] = nil
+  if carriage and carriage.valid and carriage.train then
+    enable_automatic_mode(carriage.train)
   end
 end
 
@@ -443,9 +445,7 @@ function enable_automatic_mode(train)
 
   -- Train is marked for deconstruction
   for _, carriage in pairs(train.carriages) do
-    if carriage.to_be_deconstructed(carriage.force) then
-      return
-    end
+    if carriage.to_be_deconstructed(carriage.force) then return end
   end
 
   -- Train is waiting for fuel
@@ -456,10 +456,8 @@ function enable_automatic_mode(train)
     }
     for _, request in pairs(requests) do
       if request.proxy_target == carriage then
-        global.fuel_requests[carriage.unit_number] = {
-          entity = carriage,
-          proxy = request,
-        }
+        global.fuel_requests[request.unit_number] = carriage
+        script.register_on_entity_destroyed(request)
         return
       end
     end
@@ -636,6 +634,7 @@ script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_gui_opened, on_gui_opened)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
+script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
 
 -- Filter events for deployer chest and trains
 local filter = {
