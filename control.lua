@@ -20,6 +20,8 @@ function on_mods_changed(event)
 
   -- Migration for fuel requests
   if event
+  and event.mod_changes
+  and event.mod_changes["recursive-blueprints"]
   and event.mod_changes["recursive-blueprints"].old_version
   and event.mod_changes["recursive-blueprints"].old_version < "1.1.5" then
     local new_fuel_requests = {}
