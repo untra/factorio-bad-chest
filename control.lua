@@ -433,6 +433,7 @@ end
 
 function on_entity_destroyed(event)
   -- Look for completed train fuel item-request-proxy
+  if not event.unit_number then return end
   local carriage = global.fuel_requests[event.unit_number]
   global.fuel_requests[event.unit_number] = nil
   if carriage and carriage.valid and carriage.train then
