@@ -35,7 +35,8 @@ function on_mods_changed(event)
 
   -- Construction robotics unlocks deployer chest
   for _, force in pairs(game.forces) do
-    if force.technologies["construction-robotics"].researched then
+    if force.technologies["construction-robotics"]
+    and force.technologies["construction-robotics"].researched then
       force.recipes["blueprint-deployer"].enabled = true
     end
   end
