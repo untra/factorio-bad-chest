@@ -1,4 +1,4 @@
--- Command signals
+-- Frequently used signals
 local DEPLOY_SIGNAL = {name="construction-robot", type="item"}
 local DECONSTRUCT_SIGNAL = {name="deconstruction-planner", type="item"}
 local COPY_SIGNAL = {name="signal-C", type="virtual"}
@@ -7,6 +7,11 @@ local Y_SIGNAL = {name="signal-Y", type="virtual"}
 local WIDTH_SIGNAL = {name="signal-W", type="virtual"}
 local HEIGHT_SIGNAL = {name="signal-H", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
+local COMMAND_SIGNALS = {
+  ["construction-robot"] = true,
+  ["deconstruction-planner"] = true,
+  ["signal-C"] = true,
+}
 
 function on_init()
   global.deployers = {}
@@ -80,8 +85,6 @@ end
 function on_tick()
   -- Check one deployer per tick for new circuit networks
   local index = global.deployer_index
-  log(serpent.dump(global.deployers))
-  log(global.deployer_index)
   global.deployer_index = next(global.deployers, global.deployer_index)
   if global.deployers[index] then
     if global.deployers[index].valid then
