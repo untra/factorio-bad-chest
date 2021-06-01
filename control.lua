@@ -16,7 +16,6 @@ function on_init()
 end
 
 function on_mods_changed(event)
-  global.net_cache = {}
   global.tag_cache = {}
 
   -- Migrations
@@ -36,6 +35,8 @@ function on_mods_changed(event)
     end
     -- Migrate deployer index
     if event.mod_changes["recursive-blueprints"].old_version < "1.1.8" then
+      global.net_cache = nil
+      global.networks = {}
       local new_deployers = {}
       for _, deployer in pairs(global.deployers or {}) do
         if deployer.valid then
@@ -74,13 +75,13 @@ function on_built(event)
     on_built_carriage(entity, event.tags)
     return
   end
-  -- If entity is a blueprint deployer, update circuit connections
+  -- If entity is a blueprint deployer, cache circuit network connections
   if entity.name == "blueprint-deployer" then
     global.deployers[entity.unit_number] = entity
     update_network(entity)
     return
   end
-  -- If neighbor is a blueprint deployer, update circuit connections
+  -- If neighbor is a blueprint deployer, update circuit network connections
   local connections = entity.circuit_connection_definitions
   if connections then
     for _, connection in pairs(connections) do
@@ -93,7 +94,7 @@ function on_built(event)
 end
 
 function on_tick()
-  -- Check one deployer per tick for new circuit connections
+  -- Check one deployer per tick for new circuit network connections
   local index = global.deployer_index
   global.deployer_index = next(global.deployers, global.deployer_index)
   if global.deployers[index] then
