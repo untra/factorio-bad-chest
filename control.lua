@@ -11,6 +11,7 @@ local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 function on_init()
   global.deployers = {}
   global.fuel_requests = {}
+  global.networks = {}
   on_mods_changed()
 end
 
@@ -57,27 +58,73 @@ function on_built(event)
   local entity = event.created_entity or event.entity or event.destination
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
-    table.insert(global.deployers, entity)
+    global.deployers[entity.unit_number] = entity
+    update_networks(entity)
   elseif entity.train then
     on_built_carriage(entity, event.tags)
   end
 end
 
 function on_tick()
-  for key, deployer in pairs(global.deployers) do
-    if deployer.valid then
-      on_tick_deployer(deployer)
+  -- Check one deployer per tick for new circuit networks
+  local index = global.deployer_index
+  global.deployer_index = next(global.deployers, global.deployer_index)
+  if global.deployers[index] then
+    if global.deployers[index].valid then
+      update_networks(global.deployers[index])
     else
-      global.deployers[key] = nil
+      global.deployers[index] = nil
+      global.networks[index] = nil
     end
+  end
+
+  -- Read all circuit networks
+  for _, network in pairs(global.networks) do
+    on_tick_network(network)
   end
 end
 
-function on_tick_deployer(deployer)
+-- Cache the circuit networks attached to the deployer
+-- The deployer must be valid
+function update_networks(deployer)
+  local network = global.networks[deployer.unit_number]
+  if not network then
+    network = {deployer = deployer}
+    global.networks[deployer.unit_number] = network
+  end
+  if not network.red or not network.red.valid then
+    network.red = deployer.get_circuit_network(defines.wire_type.red)
+  end
+  if not network.green or not network.green.valid then
+    network.green = deployer.get_circuit_network(defines.wire_type.green)
+  end
+end
+
+-- Check for new orders from the circuit network
+function on_tick_network(network)
+  -- Validate networks
+  if network.red and not network.red.valid then
+    network.red = nil
+    if network.deployer.valid then
+      update_networks(network.deployer)
+    end
+  end
+  if network.green and not network.green.valid then
+    network.green = nil
+    if network.deployer.valid then
+      update_networks(network.deployer)
+    end
+  end
+  if not network.red and not network.green then
+    return
+  end
+
+  -- Read deploy signal
+  local deploy = get_signal(network, DEPLOY_SIGNAL)
   local bp = nil
-  local deploy = get_signal(deployer, DEPLOY_SIGNAL)
   if deploy > 0 then
-    bp = deployer.get_inventory(defines.inventory.chest)[1]
+    if not network.deployer.valid then return end
+    bp = network.deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
 
     -- Pick item from blueprint book
@@ -98,53 +145,61 @@ function on_tick_deployer(deployer)
 
     if bp.is_blueprint then
       -- Deploy blueprint
-      deploy_blueprint(bp, deployer)
+      deploy_blueprint(bp, network)
     elseif bp.is_deconstruction_item then
       -- Deconstruct area
-      deconstruct_area(bp, deployer, true)
+      deconstruct_area(bp, network, true)
     elseif bp.is_upgrade_item then
       -- Upgrade area
-      upgrade_area(bp, deployer, true)
+      upgrade_area(bp, network, true)
     end
     return
   end
 
   if deploy == -1 then
-    bp = deployer.get_inventory(defines.inventory.chest)[1]
+    if not network.deployer.valid then return end
+    bp = network.deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
     if bp.is_deconstruction_item then
       -- Cancel deconstruction in area
-      deconstruct_area(bp, deployer, false)
+      deconstruct_area(bp, network, false)
     elseif bp.is_upgrade_item then
       -- Cancel upgrade in area
-      upgrade_area(bp, deployer, false)
+      upgrade_area(bp, network, false)
     end
     return
   end
 
-  local deconstruct = get_signal(deployer, DECONSTRUCT_SIGNAL)
+  -- Read deconstruct signal
+  local deconstruct = get_signal(network, DECONSTRUCT_SIGNAL)
   if deconstruct == -1 then
     -- Deconstruct area
-    deconstruct_area(bp, deployer, true)
+    if not network.deployer.valid then return end
+    deconstruct_area(bp, network, true)
     return
   elseif deconstruct == -2 then
     -- Deconstruct self
-    deployer.order_deconstruction(deployer.force)
+    if not network.deployer.valid then return end
+    network.deployer.order_deconstruction(network.deployer.force)
     return
   elseif deconstruct == -3 then
     -- Cancel deconstruction in area
-    deconstruct_area(bp, deployer, false)
+    if not network.deployer.valid then return end
+    deconstruct_area(bp, network, false)
     return
   end
 
-  local copy = get_signal(deployer, COPY_SIGNAL)
+  -- Read copy signal
+  local copy = get_signal(network, COPY_SIGNAL)
   if copy == 1 then
     -- Copy blueprint
-    copy_blueprint(deployer)
+    if not network.deployer.valid then return end
+    copy_blueprint(network)
     return
   elseif copy == -1 then
     -- Delete blueprint
-    local stack = deployer.get_inventory(defines.inventory.chest)[1]
+    if not network.deployer.valid then return end
+    local stack = network.deployer.get_inventory(defines.inventory.chest)[1]
     if not stack.valid_for_read then return end
     if stack.is_blueprint
     or stack.is_blueprint_book
@@ -156,13 +211,30 @@ function on_tick_deployer(deployer)
   end
 end
 
-function deploy_blueprint(bp, deployer)
+-- Return integer value for given Signal: {type=, name=}
+-- The red and green networks must be valid or nil
+function get_signal(network, signal)
+  local value = 0
+  if network.red then
+    value = value + network.red.get_signal(signal)
+  end
+  if network.green then
+    value = value + network.green.get_signal(signal)
+  end
+
+  -- Mimic circuit network integer overflow
+  if value > 2147483647 then value = value - 4294967296 end
+  if value < -2147483648 then value = value + 4294967296 end
+  return value
+end
+
+function deploy_blueprint(bp, network)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
 
   -- Rotate
-  local rotation = get_signal(deployer, ROTATE_SIGNAL)
+  local rotation = get_signal(network, ROTATE_SIGNAL)
   local direction = defines.direction.north
   if (rotation == 1) then
     direction = defines.direction.east
@@ -174,8 +246,8 @@ function deploy_blueprint(bp, deployer)
 
   -- Shift x,y coordinates
   local position = {
-    x = deployer.position.x + get_signal(deployer, X_SIGNAL),
-    y = deployer.position.y + get_signal(deployer, Y_SIGNAL),
+    x = network.deployer.position.x + get_signal(network, X_SIGNAL),
+    y = network.deployer.position.y + get_signal(network, Y_SIGNAL),
   }
 
   -- Check for building out of bounds
@@ -188,8 +260,8 @@ function deploy_blueprint(bp, deployer)
 
   -- Build blueprint
   local result = bp.build_blueprint{
-    surface = deployer.surface,
-    force = deployer.force,
+    surface = network.deployer.surface,
+    force = network.deployer.force,
     position = position,
     direction = direction,
     force_build = true,
@@ -204,58 +276,59 @@ function deploy_blueprint(bp, deployer)
   end
 end
 
-function deconstruct_area(bp, deployer, deconstruct)
-  local area = get_area(deployer)
+function deconstruct_area(bp, network, deconstruct)
+  local area = get_area(network)
+  local force = network.deployer.force
   if deconstruct == false then
     -- Cancel area
-    deployer.surface.cancel_deconstruct_area{
+    network.deployer.surface.cancel_deconstruct_area{
       area = area,
-      force = deployer.force,
+      force = force,
       skip_fog_of_war = false,
       item = bp,
     }
   else
     -- Deconstruct area
-    local deconstruct_self = deployer.to_be_deconstructed(deployer.force)
-    deployer.surface.deconstruct_area{
+    local deconstruct_self = network.deployer.to_be_deconstructed(force)
+    network.deployer.surface.deconstruct_area{
       area = area,
-      force = deployer.force,
+      force = force,
       skip_fog_of_war = false,
       item = bp,
     }
     if not deconstruct_self then
        -- Don't deconstruct myself in an area order
-      deployer.cancel_deconstruction(deployer.force)
+      network.deployer.cancel_deconstruction(force)
     end
   end
 end
 
-function upgrade_area(bp, deployer, upgrade)
-  local area = get_area(deployer)
+function upgrade_area(bp, network, upgrade)
+  local area = get_area(network)
   if upgrade == false then
     -- Cancel area
-    deployer.surface.cancel_upgrade_area{
+    network.deployer.surface.cancel_upgrade_area{
       area = area,
-      force = deployer.force,
+      force = network.deployer.force,
       skip_fog_of_war = false,
       item = bp,
     }
   else
     -- Upgrade area
-    deployer.surface.upgrade_area{
+    network.deployer.surface.upgrade_area{
       area = area,
-      force = deployer.force,
+      force = network.deployer.force,
       skip_fog_of_war = false,
       item = bp,
     }
   end
 end
 
-function get_area(deployer)
-  local X = get_signal(deployer, X_SIGNAL)
-  local Y = get_signal(deployer, Y_SIGNAL)
-  local W = get_signal(deployer, WIDTH_SIGNAL)
-  local H = get_signal(deployer, HEIGHT_SIGNAL)
+function get_area(network)
+  local X = get_signal(network, X_SIGNAL)
+  local Y = get_signal(network, Y_SIGNAL)
+  local W = get_signal(network, WIDTH_SIGNAL)
+  local H = get_signal(network, HEIGHT_SIGNAL)
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
@@ -275,20 +348,21 @@ function get_area(deployer)
   W = W - 0.0078125
   H = H - 0.0078125
 
+  local position = network.deployer.position
   return {
-    {deployer.position.x + X - W/2, deployer.position.y + Y - H/2},
-    {deployer.position.x + X + W/2, deployer.position.y + Y + H/2},
+    {position.x + X - W/2, position.y + Y - H/2},
+    {position.x + X + W/2, position.y + Y + H/2},
   }
 end
 
-function copy_blueprint(deployer)
-  local inventory = deployer.get_inventory(defines.inventory.chest)
+function copy_blueprint(network)
+  local inventory = network.deployer.get_inventory(defines.inventory.chest)
   if not inventory.is_empty() then return end
   for _, signal in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
-    if get_signal(deployer, signal) >= 1 then
+    if get_signal(network, signal) >= 1 then
       -- Signal exists, now we have to search for the blueprint
-      local stack = find_stack_in_network(deployer, signal.name)
+      local stack = find_stack_in_network(network.deployer, signal.name)
       if stack then
         inventory[1].set_stack(stack)
         return
@@ -373,41 +447,6 @@ function find_stack_in_container(entity, item_name)
       return entity.held_stack
     end
   end
-end
-
--- Return integer value for given Signal: {type=, name=}
-function get_signal(entity, signal)
-  -- Cache the circuit networks to speed up performance
-  local cache = global.net_cache[entity.unit_number]
-  if not cache then
-    cache = {last_update = -1}
-    global.net_cache[entity.unit_number] = cache
-  end
-  -- Try to reload empty networks once per tick
-  -- Never reload valid networks
-  if cache.last_update < game.tick then
-    if not cache.red_network or not cache.red_network.valid then
-      cache.red_network = entity.get_circuit_network(defines.wire_type.red)
-    end
-    if not cache.green_network or not cache.green_network.valid then
-      cache.green_network = entity.get_circuit_network(defines.wire_type.green)
-    end
-    cache.last_update = game.tick
-  end
-
-  -- Get the signal
-  local value = 0
-  if cache.red_network then
-    value = value + cache.red_network.get_signal(signal)
-  end
-  if cache.green_network then
-    value = value + cache.green_network.get_signal(signal)
-  end
-
-  -- Mimic circuit network integer overflow
-  if value > 2147483647 then value = value - 4294967296 end
-  if value < -2147483648 then value = value + 4294967296 end
-  return value
 end
 
 function get_nested_blueprint(bp)
