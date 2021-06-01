@@ -19,19 +19,31 @@ function on_mods_changed(event)
   global.net_cache = {}
   global.tag_cache = {}
 
-  -- Migration for fuel requests
+  -- Migrations
   if event
   and event.mod_changes
   and event.mod_changes["recursive-blueprints"]
-  and event.mod_changes["recursive-blueprints"].old_version
-  and event.mod_changes["recursive-blueprints"].old_version < "1.1.5" then
-    local new_fuel_requests = {}
-    for _, request in pairs(global.fuel_requests or {}) do
-      if request.proxy and request.proxy.valid then
-        new_fuel_requests[request.proxy.unit_number] = request.entity
+  and event.mod_changes["recursive-blueprints"].old_version then
+    -- Migrate fuel requests
+    if event.mod_changes["recursive-blueprints"].old_version < "1.1.5" then
+      local new_fuel_requests = {}
+      for _, request in pairs(global.fuel_requests or {}) do
+        if request.proxy and request.proxy.valid then
+          new_fuel_requests[request.proxy.unit_number] = request.entity
+        end
       end
+      global.fuel_requests = new_fuel_requests
     end
-    global.fuel_requests = new_fuel_requests
+    -- Migrate deployer index
+    if event.mod_changes["recursive-blueprints"].old_version < "1.1.8" then
+      local new_deployers = {}
+      for _, deployer in pairs(global.deployers or {}) do
+        if deployer.valid then
+          new_deployers[deployer.unit_number] = deployer
+        end
+      end
+      global.deployers = new_deployers
+    end
   end
 
   -- Construction robotics unlocks deployer chest
@@ -68,6 +80,8 @@ end
 function on_tick()
   -- Check one deployer per tick for new circuit networks
   local index = global.deployer_index
+  log(serpent.dump(global.deployers))
+  log(global.deployer_index)
   global.deployer_index = next(global.deployers, global.deployer_index)
   if global.deployers[index] then
     if global.deployers[index].valid then
