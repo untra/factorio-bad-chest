@@ -93,7 +93,7 @@ function on_built(event)
 end
 
 function on_tick()
-  -- Check one deployer per tick for new circuit networks
+  -- Check one deployer per tick for new circuit connections
   local index = global.deployer_index
   global.deployer_index = next(global.deployers, global.deployer_index)
   if global.deployers[index] then
@@ -536,7 +536,7 @@ function on_player_setup_blueprint(event)
   global.tag_cache[event.player_index] = nil
 
   -- Search the selected area for trains
-  local player = game.players[event.player_index]
+  local player = game.get_player(event.player_index)
   local entities = player.surface.find_entities_filtered {
     area = event.area,
     force = player.force,
