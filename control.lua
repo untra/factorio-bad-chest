@@ -1,4 +1,4 @@
--- Frequently used signals
+-- Command signals
 local DEPLOY_SIGNAL = {name="construction-robot", type="item"}
 local DECONSTRUCT_SIGNAL = {name="deconstruction-planner", type="item"}
 local COPY_SIGNAL = {name="signal-C", type="virtual"}
@@ -7,11 +7,6 @@ local Y_SIGNAL = {name="signal-Y", type="virtual"}
 local WIDTH_SIGNAL = {name="signal-W", type="virtual"}
 local HEIGHT_SIGNAL = {name="signal-H", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
-local COMMAND_SIGNALS = {
-  ["construction-robot"] = true,
-  ["deconstruction-planner"] = true,
-  ["signal-C"] = true,
-}
 
 function on_init()
   global.deployers = {}
@@ -74,11 +69,26 @@ end
 function on_built(event)
   local entity = event.created_entity or event.entity or event.destination
   if not entity or not entity.valid then return end
+  -- Support automatic mode for trains
+  if entity.train then
+    on_built_carriage(entity, event.tags)
+    return
+  end
+  -- If entity is a blueprint deployer, update circuit connections
   if entity.name == "blueprint-deployer" then
     global.deployers[entity.unit_number] = entity
-    update_networks(entity)
-  elseif entity.train then
-    on_built_carriage(entity, event.tags)
+    update_network(entity)
+    return
+  end
+  -- If neighbor is a blueprint deployer, update circuit connections
+  local connections = entity.circuit_connection_definitions
+  if connections then
+    for _, connection in pairs(connections) do
+      if connection.target_entity.valid
+      and connection.target_entity.name == "blueprint-deployer" then
+        update_network(connection.target_entity)
+      end
+    end
   end
 end
 
@@ -88,7 +98,7 @@ function on_tick()
   global.deployer_index = next(global.deployers, global.deployer_index)
   if global.deployers[index] then
     if global.deployers[index].valid then
-      update_networks(global.deployers[index])
+      update_network(global.deployers[index])
     else
       global.deployers[index] = nil
       global.networks[index] = nil
@@ -101,36 +111,13 @@ function on_tick()
   end
 end
 
--- Cache the circuit networks attached to the deployer
--- The deployer must be valid
-function update_networks(deployer)
-  local network = global.networks[deployer.unit_number]
-  if not network then
-    network = {deployer = deployer}
-    global.networks[deployer.unit_number] = network
-  end
-  if not network.red or not network.red.valid then
-    network.red = deployer.get_circuit_network(defines.wire_type.red)
-  end
-  if not network.green or not network.green.valid then
-    network.green = deployer.get_circuit_network(defines.wire_type.green)
-  end
-end
-
--- Check for new orders from the circuit network
 function on_tick_network(network)
-  -- Validate networks
+  -- Validate network
   if network.red and not network.red.valid then
     network.red = nil
-    if network.deployer.valid then
-      update_networks(network.deployer)
-    end
   end
   if network.green and not network.green.valid then
     network.green = nil
-    if network.deployer.valid then
-      update_networks(network.deployer)
-    end
   end
   if not network.red and not network.green then
     return
@@ -228,21 +215,20 @@ function on_tick_network(network)
   end
 end
 
--- Return integer value for given Signal: {type=, name=}
--- The red and green networks must be valid or nil
-function get_signal(network, signal)
-  local value = 0
-  if network.red then
-    value = value + network.red.get_signal(signal)
+-- Cache the circuit networks attached to the deployer
+-- The deployer must be valid
+function update_network(deployer)
+  local network = global.networks[deployer.unit_number]
+  if not network then
+    network = {deployer = deployer}
+    global.networks[deployer.unit_number] = network
   end
-  if network.green then
-    value = value + network.green.get_signal(signal)
+  if not network.red or not network.red.valid then
+    network.red = deployer.get_circuit_network(defines.wire_type.red)
   end
-
-  -- Mimic circuit network integer overflow
-  if value > 2147483647 then value = value - 4294967296 end
-  if value < -2147483648 then value = value + 4294967296 end
-  return value
+  if not network.green or not network.green.valid then
+    network.green = deployer.get_circuit_network(defines.wire_type.green)
+  end
 end
 
 function deploy_blueprint(bp, network)
@@ -339,6 +325,23 @@ function upgrade_area(bp, network, upgrade)
       item = bp,
     }
   end
+end
+
+-- Return integer value for given Signal: {type=, name=}
+-- The red and green networks must be valid or nil
+function get_signal(network, signal)
+  local value = 0
+  if network.red then
+    value = value + network.red.get_signal(signal)
+  end
+  if network.green then
+    value = value + network.green.get_signal(signal)
+  end
+
+  -- Mimic circuit network integer overflow
+  if value > 2147483647 then value = value - 4294967296 end
+  if value < -2147483648 then value = value + 4294967296 end
+  return value
 end
 
 function get_area(network)
@@ -696,13 +699,9 @@ script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_bluepr
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
 
--- Filter events for deployer chest and trains
+-- Filter out ghost build events
 local filter = {
-  {filter = "name", name = "blueprint-deployer"},
-  {filter = "type", type = "locomotive"},
-  {filter = "type", type = "cargo-wagon"},
-  {filter = "type", type = "fluid-wagon"},
-  {filter = "type", type = "artillery-wagon"},
+  {filter = "ghost", invert = true},
 }
 script.on_event(defines.events.on_built_entity, on_built, filter)
 script.on_event(defines.events.on_entity_cloned, on_built, filter)
