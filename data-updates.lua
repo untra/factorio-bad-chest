@@ -35,7 +35,7 @@ end
 
 -- Rocks
 for _, entity in pairs(data.raw["simple-entity"]) do
-  if entity.autoplace then
+  if entity.count_as_rock_for_filtered_deconstruction then
     add_scanner_resource(entity)
   end
 end

@@ -23,11 +23,13 @@ function on_init()
   global.deployers = {}
   global.fuel_requests = {}
   global.networks = {}
+  global.scanners = {}
   on_mods_changed()
 end
 
 function on_mods_changed(event)
   global.tag_cache = {}
+  global.cliff_explosives = (game.item_prototypes["cliff-explosives"] ~= nil)
 
   -- Migrations
   if event
@@ -82,17 +84,36 @@ end
 function on_built(event)
   local entity = event.created_entity or event.entity or event.destination
   if not entity or not entity.valid then return end
+
   -- Support automatic mode for trains
   if entity.train then
     on_built_carriage(entity, event.tags)
     return
   end
+
+  -- If entity is a scanner, set defaults and add it to the list
+  if entity.name == "recursive-blueprints-scanner" then
+    local settings = {
+      top = -32,
+      left = -32,
+      bottom = 32,
+      right = 32,
+    }
+    if event.source and event.source.valid then
+      -- Copy settings from clone
+      settings = table.deepcopy(global.scanners[source.unit_number])
+    end
+    settings.scanner = entity
+    global.scanners[entity.unit_number] = settings
+  end
+
   -- If entity is a blueprint deployer, cache circuit network connections
   if entity.name == "blueprint-deployer" then
     global.deployers[entity.unit_number] = entity
     update_network(entity)
     return
   end
+
   -- If neighbor is a blueprint deployer, update circuit network connections
   local connections = entity.circuit_connection_definitions
   if connections then
@@ -605,7 +626,8 @@ function on_gui_opened(event)
   and event.entity.valid
   and event.entity.name == "recursive-blueprints-scanner" then
     local player = game.get_player(event.player_index)
-    local gui = update_scanner_gui(player, event.entity)
+    local gui = get_scanner_gui(player, event.entity)
+    update_scanner_gui(gui)
     player.opened = gui
   end
 end
@@ -758,58 +780,253 @@ function add_titlebar(gui, caption)
   }
 end
 
-function update_scanner_gui(player, scanner)
+function get_scanner_gui(player, scanner)
   local gui = player.gui.screen["recursive-blueprints-scanner"]
-  if not gui then
-    gui = player.gui.screen.add{
-      type = "frame",
-      name = "recursive-blueprints-scanner",
-      direction = "vertical",
-    }
-    gui.auto_center = true
-    add_titlebar(gui, scanner.localised_name)
-    local inner_frame = gui.add{
-      type = "frame",
-      style = "entity_frame",
-      direction = "vertical",
-    }
-    inner_frame.style.top_padding = 12
-    inner_frame.style.left_padding = 12
-    inner_frame.style.right_padding = 12
-    local status_flow = inner_frame.add{
-      type = "flow",
-      style = "status_flow",
-    }
-    status_flow.style.vertical_align = "center"
-    status_flow.add{
-      type = "sprite",
-      style = "status_image",
-      sprite = STATUS_SPRITE[scanner.status],
-    }
-    status_flow.add{
-      type = "label",
-      caption = {STATUS_NAME[scanner.status]},
-    }
-    local preview_frame = inner_frame.add{
-      type = "frame",
-      style = "entity_button_frame",
-    }
-    preview_frame.style.left_margin = 0
-    preview_frame.style.left_padding = 0
-    local preview = preview_frame.add{
-      type = "entity-preview",
-    }
-    preview.entity = scanner
-    preview.style.height = 148
-    preview.style.horizontally_stretchable = true
-    inner_frame.add{
-      type = "label",
-      style = "heading_3_label",
-      caption = {"gui-map-editor-script-editor.current-areas"},
-    }
-    inner_frame.add{type="label", caption="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
-  end
+  if gui then return gui end
+  local settings = global.scanners[scanner.unit_number]
+
+  gui = player.gui.screen.add{
+    type = "frame",
+    name = "recursive-blueprints-scanner",
+    direction = "vertical",
+    tags = {["recursive-blueprints-id"] = scanner.unit_number}
+  }
+  gui.auto_center = true
+  add_titlebar(gui, scanner.localised_name)
+  local inner_frame = gui.add{
+    type = "frame",
+    style = "entity_frame",
+    direction = "vertical",
+  }
+  local status_flow = inner_frame.add{
+    type = "flow",
+    style = "status_flow",
+  }
+  status_flow.style.vertical_align = "center"
+  status_flow.add{
+    type = "sprite",
+    style = "status_image",
+    sprite = STATUS_SPRITE[scanner.status],
+  }
+  status_flow.add{
+    type = "label",
+    caption = {STATUS_NAME[scanner.status]},
+  }
+  local preview_frame = inner_frame.add{
+    type = "frame",
+    style = "entity_button_frame",
+  }
+  local preview = preview_frame.add{
+    type = "entity-preview",
+  }
+  preview.entity = scanner
+  preview.style.height = 148
+  preview.style.horizontally_stretchable = true
+  inner_frame.add{
+    type = "label",
+    style = "heading_3_label",
+    caption = {"gui-map-editor-script-editor.current-areas"},
+  }
+
+  local top_flow = inner_frame.add{
+    type = "flow",
+    style = "centering_horizontal_flow",
+  }
+  top_flow.style.horizontally_stretchable = true
+  local top_text = top_flow.add{
+    type = "textfield",
+    name = "recursive-blueprints-scanner-top",
+    numeric = true,
+    allow_negative = true,
+    text = settings.top,
+  }
+  top_text.style.size = 40
+
+  local middle_flow = inner_frame.add{
+    type = "flow",
+    style = "centering_horizontal_flow",
+  }
+  middle_flow.style.horizontally_stretchable = true
+
+  local left_flow = middle_flow.add{
+    type = "flow",
+  }
+  local left_text = left_flow.add{
+    type = "textfield",
+    name = "recursive-blueprints-scanner-left",
+    numeric = true,
+    allow_negative = true,
+    text = settings.left,
+  }
+  left_text.style.size = 40
+
+  local minimap_frame = middle_flow.add{
+    type = "frame",
+    style = "entity_button_frame",
+  }
+  minimap_frame.style.size = 256
+  minimap_frame.style.vertical_align = "center"
+  minimap_frame.style.horizontal_align = "center"
+  local minimap = minimap_frame.add{
+    type = "minimap",
+    surface_index = scanner.surface.index,
+    force = scanner.force.name,
+    position = scanner.position,
+  }
+  minimap.style.minimal_width = 16
+  minimap.style.minimal_height = 16
+  minimap.style.maximal_width = 256
+  minimap.style.maximal_height = 256
+
+  local right_flow = middle_flow.add{
+    type = "flow",
+  }
+  local right_text = right_flow.add{
+    type = "textfield",
+    name = "recursive-blueprints-scanner-right",
+    numeric = true,
+    allow_negative = true,
+    text = settings.right,
+  }
+  right_text.style.size = 40
+
+  local bottom_flow = inner_frame.add{
+    type = "flow",
+    style = "centering_horizontal_flow",
+  }
+  bottom_flow.style.horizontally_stretchable = true
+  local bottom_text = bottom_flow.add{
+    type = "textfield",
+    name = "recursive-blueprints-scanner-bottom",
+    numeric = true,
+    allow_negative = true,
+    text = settings.bottom,
+  }
+  bottom_text.style.size = 40
   return gui
+end
+
+function on_gui_text_changed(event)
+  if not event.element.valid then return end
+  local name = event.element.name
+  if not name then return end
+  if name == "recursive-blueprints-scanner-top" then
+    local gui = event.element.parent.parent.parent
+    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
+    local new_value = tonumber(event.element.text) or 0
+    if settings.top ~= new_value then
+      settings.top = new_value
+      scan_resources(settings)
+      update_scanner_gui(gui)
+    end
+  end
+  if name == "recursive-blueprints-scanner-left" then
+    local gui = event.element.parent.parent.parent.parent
+    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
+    local new_value = tonumber(event.element.text) or 0
+    if settings.left ~= new_value then
+      settings.left = new_value
+      scan_resources(settings)
+      update_scanner_gui(gui)
+    end
+  end
+  if name == "recursive-blueprints-scanner-bottom" then
+    local gui = event.element.parent.parent.parent
+    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
+    local new_value = tonumber(event.element.text) or 0
+    if settings.bottom ~= new_value then
+      settings.bottom = new_value
+      scan_resources(settings)
+      update_scanner_gui(gui)
+    end
+  end
+  if name == "recursive-blueprints-scanner-right" then
+    local gui = event.element.parent.parent.parent.parent
+    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
+    local new_value = tonumber(event.element.text) or 0
+    if settings.right ~= new_value then
+      settings.right = new_value
+      scan_resources(settings)
+      update_scanner_gui(gui)
+    end
+  end
+end
+
+function update_scanner_gui(gui)
+  local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
+  if not settings then return end
+  if not settings.scanner.valid then return end
+
+  local inner_frame = gui.children[2]
+  local minimap = inner_frame.children[5].children[2].children[1]
+  local width = settings.right - settings.left
+  local height = settings.bottom - settings.top
+  minimap.position = {
+    settings.scanner.position.x + settings.left + width/2,
+    settings.scanner.position.y + settings.top + height/2,
+  }
+  width = math.abs(width)
+  height = math.abs(height)
+  local largest = math.max(width, height)
+  if largest == 0 then
+    largest = 32
+  end
+  minimap.zoom = 256 / largest
+  minimap.style.natural_width = width / largest * 256
+  minimap.style.natural_height = height / largest * 256
+end
+
+function scan_resources(settings)
+  local resources = {item = {}, fluid = {}}
+  local p = settings.scanner.position
+  local area = {
+    {p.x + settings.left, p.y + settings.top},
+    {p.x + settings.right, p.y + settings.bottom},
+  }
+  local result = settings.scanner.surface.find_entities_filtered{
+    area = area,
+    force = "neutral",
+  }
+  for _, resource in pairs(result) do
+    local prototype = resource.prototype
+    if resource.type == "cliff" and global.cliff_explosives then
+      resources.item["cliff-explosives"] = (resources.item["cliff-explosives"] or 0) - 1
+    elseif resource.type == "resource" then
+      local type = prototype.mineable_properties.products[1].type
+      local amount = resource.amount
+      if prototype.infinite_resource then
+        amount = 1
+      end
+      resources[type][resource.name] = (resources[type][resource.name] or 0) + amount
+    elseif prototype.mineable_properties.minable and prototype.mineable_properties.products then
+      for _, product in pairs(prototype.mineable_properties.products) do
+        local amount = product.amount
+        if product.amount_min and product.amount_max then
+          amount = (product.amount_min + product.amount_max) / 2
+          amount = amount * product.probability
+        end
+        resources[product.type][product.name] = (resources[product.type][product.name] or 0) + amount
+      end
+    end
+  end
+  resources.fluid["water"] = settings.scanner.surface.count_tiles_filtered{
+    area = area,
+    collision_mask = {"water-tile"},
+  }
+  local behavior = settings.scanner.get_control_behavior()
+  local index = 0
+  for type, resource in pairs(resources) do
+    for name, amount in pairs(resource) do
+      index = index + 1
+      if amount > 2147483647 then amount = 2147483647 end
+      behavior.set_signal(index, {signal={type=type, name=name}, count=amount})
+    end
+  end
+  local max = settings.scanner.prototype.item_slot_count
+  while index < max do
+    index = index + 1
+    behavior.set_signal(index, nil)
+  end
 end
 
 -- Global events
@@ -819,6 +1036,7 @@ script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_gui_opened, on_gui_opened)
 script.on_event(defines.events.on_gui_closed, on_gui_closed)
 script.on_event(defines.events.on_gui_click, on_gui_click)
+script.on_event(defines.events.on_gui_text_changed, on_gui_text_changed)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
