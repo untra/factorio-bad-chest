@@ -8,6 +8,17 @@ local WIDTH_SIGNAL = {name="signal-W", type="virtual"}
 local HEIGHT_SIGNAL = {name="signal-H", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 
+local STATUS_NAME = {
+  [defines.entity_status.working] = "entity-status.working",
+  [defines.entity_status.disabled] = "entity-status.disabled",
+  [defines.entity_status.marked_for_deconstruction] = "entity-status.marked-for-deconstruction",
+}
+local STATUS_SPRITE = {
+  [defines.entity_status.working] = "utility/status_working",
+  [defines.entity_status.disabled] = "utility/status_not_working",
+  [defines.entity_status.marked_for_deconstruction] = "utility/status_not_working",
+}
+
 function on_init()
   global.deployers = {}
   global.fuel_requests = {}
@@ -588,6 +599,35 @@ function on_gui_opened(event)
   and event.item.is_blueprint then
     global.tag_cache[event.player_index] = nil
   end
+  -- Replace scanner gui
+  if event.gui_type == defines.gui_type.entity
+  and event.entity
+  and event.entity.valid
+  and event.entity.name == "recursive-blueprints-scanner" then
+    local player = game.get_player(event.player_index)
+    local gui = update_scanner_gui(player, event.entity)
+    player.opened = gui
+  end
+end
+
+function on_gui_closed(event)
+  -- Destroy scanner gui
+  if event.gui_type == defines.gui_type.custom
+  and event.element
+  and event.element.name
+  and event.element.name == "recursive-blueprints-scanner" then
+    event.element.destroy()
+  end
+end
+
+function on_gui_click(event)
+  local name = event.element.name
+  if not name then return end
+  if name == "recursive-blueprints-x" then
+    -- Close gui
+    event.element.parent.parent.destroy()
+    return
+  end
 end
 
 -- Create automatic mode tags for each train
@@ -691,25 +731,84 @@ function calculate_offset(table1, table2)
   end
 end
 
-function on_gui_opened(event)
-  if not event.entity then return end
-  if not event.entity.valid then return end
-  if event.entity.name ~= "recursive-blueprints-scanner" then return end
-  local player = game.get_player(event.player_index)
-  get_scanner_gui(player, event.entity)
+function add_titlebar(gui, caption)
+  local titlebar = gui.add{type = "flow"}
+  titlebar.drag_target = gui
+  titlebar.add{
+    type = "label",
+    style = "frame_title",
+    caption = caption,
+    ignored_by_interaction = true,
+  }
+  local filler = titlebar.add{
+    type = "empty-widget",
+    style = "draggable_space",
+    ignored_by_interaction = true,
+  }
+  filler.style.height = 24
+  filler.style.horizontally_stretchable = true
+  titlebar.add{
+    type = "sprite-button",
+    name = "recursive-blueprints-x",
+    style = "frame_action_button",
+    sprite = "utility/close_white",
+    hovered_sprite = "utility/close_black",
+    clicked_sprite = "utility/close_black",
+    tooltip = {"gui.close-instruction"},
+  }
 end
 
-function get_scanner_gui(player, scanner)
-  if player.gui.relative["recursive-blueprints-scanner"] then
-    return player.gui.relative["recursive-blueprints-scanner"]
+function update_scanner_gui(player, scanner)
+  local gui = player.gui.screen["recursive-blueprints-scanner"]
+  if not gui then
+    gui = player.gui.screen.add{
+      type = "frame",
+      name = "recursive-blueprints-scanner",
+      direction = "vertical",
+    }
+    gui.auto_center = true
+    add_titlebar(gui, scanner.localised_name)
+    local inner_frame = gui.add{
+      type = "frame",
+      style = "entity_frame",
+      direction = "vertical",
+    }
+    inner_frame.style.top_padding = 12
+    inner_frame.style.left_padding = 12
+    inner_frame.style.right_padding = 12
+    local status_flow = inner_frame.add{
+      type = "flow",
+      style = "status_flow",
+    }
+    status_flow.style.vertical_align = "center"
+    status_flow.add{
+      type = "sprite",
+      style = "status_image",
+      sprite = STATUS_SPRITE[scanner.status],
+    }
+    status_flow.add{
+      type = "label",
+      caption = {STATUS_NAME[scanner.status]},
+    }
+    local preview_frame = inner_frame.add{
+      type = "frame",
+      style = "entity_button_frame",
+    }
+    preview_frame.style.left_margin = 0
+    preview_frame.style.left_padding = 0
+    local preview = preview_frame.add{
+      type = "entity-preview",
+    }
+    preview.entity = scanner
+    preview.style.height = 148
+    preview.style.horizontally_stretchable = true
+    inner_frame.add{
+      type = "label",
+      style = "heading_3_label",
+      caption = {"gui-map-editor-script-editor.current-areas"},
+    }
+    inner_frame.add{type="label", caption="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
   end
-  local gui = player.gui.relative.add{type="frame", name="recursive-blueprints-scanner", caption={"entity-name.recursive-blueprints-scanner"}}
-  gui.anchor = {
-    gui = defines.relative_gui_type.constant_combinator_gui,
-    position = defines.relative_gui_position.top,
-    name = "recursive-blueprints-scanner",
-  }
-  gui.add{type="label", caption="Scanner"}
   return gui
 end
 
@@ -718,10 +817,11 @@ script.on_init(on_init)
 script.on_configuration_changed(on_mods_changed)
 script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_gui_opened, on_gui_opened)
+script.on_event(defines.events.on_gui_closed, on_gui_closed)
+script.on_event(defines.events.on_gui_click, on_gui_click)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
-script.on_event(defines.events.on_gui_opened, on_gui_opened)
 
 -- Filter out ghost build events
 local filter = {

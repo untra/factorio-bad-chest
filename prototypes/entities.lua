@@ -59,6 +59,9 @@ data:extend{deployer}
 
 local scanner = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
 scanner.name = "recursive-blueprints-scanner"
-deployer.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
-deployer.minable.result = "recursive-blueprints-scanner"
+scanner.collision_box = {{-0.7, -0.7}, {0.7, 0.7}}
+scanner.selection_box = {{-1, -1}, {1, 1}}
+scanner.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
+scanner.minable.result = "recursive-blueprints-scanner"
+table.insert(scanner.flags, "hide-alt-info")
 data:extend{scanner}
