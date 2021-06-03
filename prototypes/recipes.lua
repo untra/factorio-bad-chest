@@ -10,4 +10,15 @@ data:extend{
       {"advanced-circuit", 1},
     },
   },
+  {
+    type = "recipe",
+    name = "recursive-blueprints-scanner",
+    result = "recursive-blueprints-scanner",
+    enabled = false,
+    ingredients = {
+      {"electronic-circuit", 5},
+      {"iron-gear-wheel", 5},
+      {"iron-plate", 10},
+    },
+  },
 }

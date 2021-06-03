@@ -52,6 +52,7 @@ function on_mods_changed(event)
     if force.technologies["construction-robotics"]
     and force.technologies["construction-robotics"].researched then
       force.recipes["blueprint-deployer"].enabled = true
+      force.recipes["recursive-blueprints-scanner"].enabled = true
     end
   end
 
@@ -690,6 +691,14 @@ function calculate_offset(table1, table2)
   end
 end
 
+function on_gui_opened(event)
+  if not event.entity then return end
+  if not event.entity.valid then return end
+  if event.entity.name ~= "recursive-blueprints-scanner" then return end
+  local player = game.get_player(event.player_index)
+  
+
+end
 
 -- Global events
 script.on_init(on_init)
@@ -699,6 +708,7 @@ script.on_event(defines.events.on_gui_opened, on_gui_opened)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
+script.on_event(defines.events.on_gui_opened, on_gui_opened)
 
 -- Filter out ghost build events
 local filter = {

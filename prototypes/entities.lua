@@ -3,6 +3,7 @@ deployer.name = "blueprint-deployer"
 deployer.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
 deployer.minable.result = "blueprint-deployer"
 deployer.inventory_size = 1
+deployer.enable_inventory_bar = false
 deployer.picture.layers = {
   {
     filename = "__recursive-blueprints__/graphics/blueprint-deployer.png",
@@ -55,3 +56,9 @@ deployer.picture.layers = {
   }
 }
 data:extend{deployer}
+
+local scanner = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
+scanner.name = "recursive-blueprints-scanner"
+deployer.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
+deployer.minable.result = "recursive-blueprints-scanner"
+data:extend{scanner}
