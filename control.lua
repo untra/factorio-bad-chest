@@ -696,8 +696,21 @@ function on_gui_opened(event)
   if not event.entity.valid then return end
   if event.entity.name ~= "recursive-blueprints-scanner" then return end
   local player = game.get_player(event.player_index)
-  
+  get_scanner_gui(player, event.entity)
+end
 
+function get_scanner_gui(player, scanner)
+  if player.gui.relative["recursive-blueprints-scanner"] then
+    return player.gui.relative["recursive-blueprints-scanner"]
+  end
+  local gui = player.gui.relative.add{type="frame", name="recursive-blueprints-scanner", caption={"entity-name.recursive-blueprints-scanner"}}
+  gui.anchor = {
+    gui = defines.relative_gui_type.constant_combinator_gui,
+    position = defines.relative_gui_position.top,
+    name = "recursive-blueprints-scanner",
+  }
+  gui.add{type="label", caption="Scanner"}
+  return gui
 end
 
 -- Global events
