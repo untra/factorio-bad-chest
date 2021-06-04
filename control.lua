@@ -911,44 +911,23 @@ function on_gui_text_changed(event)
   local name = event.element.name
   if not name then return end
   if name == "recursive-blueprints-scanner-top" then
-    local gui = event.element.parent.parent.parent
-    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
-    local new_value = tonumber(event.element.text) or 0
-    if settings.top ~= new_value then
-      settings.top = new_value
-      scan_resources(settings)
-      update_scanner_gui(gui)
-    end
+    set_scanner_value(event.element.parent.parent.parent, "top", event.element.text)
+  elseif name == "recursive-blueprints-scanner-left" then
+    set_scanner_value(event.element.parent.parent.parent.parent, "left", event.element.text)
+  elseif name == "recursive-blueprints-scanner-bottom" then
+    set_scanner_value(event.element.parent.parent.parent, "bottom", event.element.text)
+  elseif name == "recursive-blueprints-scanner-right" then
+    set_scanner_value(event.element.parent.parent.parent.parent, "right", event.element.text)
   end
-  if name == "recursive-blueprints-scanner-left" then
-    local gui = event.element.parent.parent.parent.parent
-    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
-    local new_value = tonumber(event.element.text) or 0
-    if settings.left ~= new_value then
-      settings.left = new_value
-      scan_resources(settings)
-      update_scanner_gui(gui)
-    end
-  end
-  if name == "recursive-blueprints-scanner-bottom" then
-    local gui = event.element.parent.parent.parent
-    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
-    local new_value = tonumber(event.element.text) or 0
-    if settings.bottom ~= new_value then
-      settings.bottom = new_value
-      scan_resources(settings)
-      update_scanner_gui(gui)
-    end
-  end
-  if name == "recursive-blueprints-scanner-right" then
-    local gui = event.element.parent.parent.parent.parent
-    local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
-    local new_value = tonumber(event.element.text) or 0
-    if settings.right ~= new_value then
-      settings.right = new_value
-      scan_resources(settings)
-      update_scanner_gui(gui)
-    end
+end
+
+function set_scanner_value(gui, key, value)
+  local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
+  local new_value = tonumber(value) or 0
+  if settings[key] ~= new_value then
+    settings[key] = new_value
+    scan_resources(settings)
+    update_scanner_gui(gui)
   end
 end
 
@@ -976,22 +955,18 @@ function update_scanner_gui(gui)
   minimap.style.natural_height = height / largest * 256
 end
 
-function scan_resources(settings)
-  local resources = {item = {}, fluid = {}}
-  local p = settings.scanner.position
-  local area = {
-    {p.x + settings.left, p.y + settings.top},
-    {p.x + settings.right, p.y + settings.bottom},
-  }
-  local result = settings.scanner.surface.find_entities_filtered{
+function count_resources(surface, area, resources)
+  local result = surface.find_entities_filtered{
     area = area,
     force = "neutral",
   }
   for _, resource in pairs(result) do
     local prototype = resource.prototype
     if resource.type == "cliff" and global.cliff_explosives then
+      -- Cliff explosives
       resources.item["cliff-explosives"] = (resources.item["cliff-explosives"] or 0) - 1
     elseif resource.type == "resource" then
+      -- Mining drill resources
       local type = prototype.mineable_properties.products[1].type
       local amount = resource.amount
       if prototype.infinite_resource then
@@ -999,6 +974,7 @@ function scan_resources(settings)
       end
       resources[type][resource.name] = (resources[type][resource.name] or 0) + amount
     elseif prototype.mineable_properties.minable and prototype.mineable_properties.products then
+      -- Trees, rocks, fish
       for _, product in pairs(prototype.mineable_properties.products) do
         local amount = product.amount
         if product.amount_min and product.amount_max then
@@ -1009,23 +985,63 @@ function scan_resources(settings)
       end
     end
   end
-  resources.fluid["water"] = settings.scanner.surface.count_tiles_filtered{
+  -- Water
+  resources.fluid["water"] = (resources.fluid["water"] or 0) + surface.count_tiles_filtered{
     area = area,
-    collision_mask = {"water-tile"},
+    collision_mask = "water-tile",
   }
-  local behavior = settings.scanner.get_control_behavior()
-  local index = 0
-  for type, resource in pairs(resources) do
-    for name, amount in pairs(resource) do
-      index = index + 1
-      if amount > 2147483647 then amount = 2147483647 end
-      behavior.set_signal(index, {signal={type=type, name=name}, count=amount})
+end
+
+function scan_resources(settings)
+  local resources = {item = {}, fluid = {}}
+  local p = settings.scanner.position
+  local area = {
+    {p.x + settings.left, p.y + settings.top},
+    {p.x + settings.right, p.y + settings.bottom},
+  }
+  local force = settings.scanner.force
+  local surface = settings.scanner.surface
+  local x1 = p.x + settings.left + 1/256
+  local x2 = p.x + settings.right - 1/256
+  local y1 = p.y + settings.top + 1/256
+  local y2 = p.y + settings.bottom - 1/256
+
+  -- Search one chunk at a time
+  for x = x1, x2, 32 do
+    for y = y1, y2, 32 do
+      local left = math.floor(x / 32) * 32
+      local top = math.floor(y / 32) * 32
+      local right = math.ceil(x / 32) * 32
+      local bottom = math.ceil(y / 32) * 32
+      if x == x1 then left = x end
+      if y == y1 then top = y end
+      if x > x2 then right = x2 end
+      if y > y2 then bottom = y2 end
+      local chunk_position = {math.floor(x / 32), math.floor(y / 32)}
+      -- Chunk must be visible
+      if force.is_chunk_charted(surface, chunk_position) then
+        local area = {{left, top}, {right, bottom}}
+        count_resources(surface, area, resources)
+      end
     end
   end
+
+  -- Copy resources to combinator output
+  local behavior = settings.scanner.get_control_behavior()
+  local index = 1
+  for type, resource in pairs(resources) do
+    for name, count in pairs(resource) do
+      -- Avoid int32 overflow
+      if count > 2147483647 then count = 2147483647 end
+      behavior.set_signal(index, {signal={type=type, name=name}, count=count})
+      index = index + 1
+    end
+  end
+  -- Set the remaining output slots to nil
   local max = settings.scanner.prototype.item_slot_count
-  while index < max do
-    index = index + 1
+  while index <= max do
     behavior.set_signal(index, nil)
+    index = index + 1
   end
 end
 
@@ -1050,3 +1066,6 @@ script.on_event(defines.events.on_entity_cloned, on_built, filter)
 script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
+
+-- TODO: Add scanner destroyed event, remove gui and settings
+-- TODO: Copy scanner settings to blueprint
