@@ -630,6 +630,15 @@ function on_player_configured_blueprint(event)
   global.tag_cache[event.player_index] = nil
 end
 
+function on_setting_changed(event)
+  if event.setting == "recursive-blueprints-area" then
+    -- Refresh scanners
+    for _, scanner in pairs(global.scanners) do
+      scan_resources(scanner)
+    end
+  end
+end
+
 function on_gui_opened(event)
   -- Discard old tags when a different blueprint is opened
   if event.gui_type == defines.gui_type.item
@@ -654,13 +663,14 @@ function on_gui_closed(event)
   -- Destroy scanner gui
   if event.gui_type == defines.gui_type.custom
   and event.element
-  and event.element.name
+  and event.element.valid
   and event.element.name == "recursive-blueprints-scanner" then
     event.element.destroy()
   end
 end
 
 function on_gui_click(event)
+  if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
   if name == "recursive-blueprints-x" then
@@ -771,7 +781,7 @@ function calculate_offset(table1, table2)
   end
 end
 
-function add_titlebar(gui, caption)
+function add_titlebar(gui, caption, close_button_name)
   local titlebar = gui.add{type = "flow"}
   titlebar.drag_target = gui
   titlebar.add{
@@ -789,7 +799,7 @@ function add_titlebar(gui, caption)
   filler.style.horizontally_stretchable = true
   titlebar.add{
     type = "sprite-button",
-    name = "recursive-blueprints-x",
+    name = close_button_name,
     style = "frame_action_button",
     sprite = "utility/close_white",
     hovered_sprite = "utility/close_black",
@@ -799,23 +809,25 @@ function add_titlebar(gui, caption)
 end
 
 function get_scanner_gui(player, entity)
-  local gui = player.gui.screen["recursive-blueprints-scanner"]
-  if gui then return gui end
   local scanner = global.scanners[entity.unit_number]
+  if player.gui.screen["recursive-blueprints-scanner"] then
+    player.gui.screen["recursive-blueprints-scanner"].destroy()
+  end
 
-  gui = player.gui.screen.add{
+  local gui = player.gui.screen.add{
     type = "frame",
     name = "recursive-blueprints-scanner",
     direction = "vertical",
     tags = {["recursive-blueprints-id"] = entity.unit_number}
   }
   gui.auto_center = true
-  add_titlebar(gui, entity.localised_name)
+  add_titlebar(gui, entity.localised_name, "recursive-blueprints-x")
   local inner_frame = gui.add{
     type = "frame",
     style = "entity_frame",
     direction = "vertical",
   }
+
   local status_flow = inner_frame.add{
     type = "flow",
     style = "status_flow",
@@ -830,6 +842,7 @@ function get_scanner_gui(player, entity)
     type = "label",
     caption = {STATUS_NAME[entity.status]},
   }
+
   local preview_frame = inner_frame.add{
     type = "frame",
     style = "entity_button_frame",
@@ -961,11 +974,19 @@ function update_scanner_gui(gui)
   if not scanner then return end
   if not scanner.entity.valid then return end
 
+  local x = scanner.x
+  local y = scanner.y
+  if settings.global["recursive-blueprints-area"].value == "corner" then
+    -- Convert from top left corner to center
+    x = x + math.floor(scanner.width/2)
+    y = y + math.floor(scanner.width/2)
+  end
+
   local inner_frame = gui.children[2]
   local minimap = inner_frame.children[5].children[2].children[1]
   minimap.position = {
-    scanner.entity.position.x + scanner.x + scanner.width/2,
-    scanner.entity.position.y + scanner.y + scanner.height/2,
+    scanner.entity.position.x + x,
+    scanner.entity.position.y + y,
   }
   local largest = math.max(scanner.width, scanner.height)
   if largest == 0 then
@@ -1018,16 +1039,21 @@ function scan_resources(scanner)
   if not scanner.entity.valid then return end
   local resources = {item = {}, fluid = {}}
   local p = scanner.entity.position
-  local area = {
-    {p.x + scanner.x, p.y + scanner.x + scanner.width},
-    {p.x + scanner.y, p.y + scanner.y + scanner.height},
-  }
   local force = scanner.entity.force
   local surface = scanner.entity.surface
-  local x1 = p.x + scanner.x + 1/256
-  local x2 = p.x + scanner.x + scanner.width - 1/256
-  local y1 = p.y + scanner.y + 1/256
-  local y2 = p.y + scanner.y + scanner.height - 1/256
+
+  local x = scanner.x
+  local y = scanner.y
+  if settings.global["recursive-blueprints-area"].value == "corner" then
+    -- Convert from top left corner to center
+    x = x + math.floor(scanner.width/2)
+    y = y + math.floor(scanner.width/2)
+  end
+
+  local x1 = p.x + x - scanner.width/2 + 1/256
+  local x2 = p.x + x + scanner.width/2 - 1/256
+  local y1 = p.y + y - scanner.height/2 - 1/256
+  local y2 = p.y + y + scanner.height/2 - 1/256
 
   -- Search one chunk at a time
   for x = x1, math.ceil(x2 / 32) * 32, 32 do
@@ -1080,6 +1106,7 @@ script.on_event(defines.events.on_gui_text_changed, on_gui_text_changed)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
+script.on_event(defines.events.on_runtime_mod_setting_changed, on_setting_changed)
 
 -- Filter out ghost build events
 local filter = {
