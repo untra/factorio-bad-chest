@@ -64,5 +64,7 @@ scanner.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
 scanner.collision_box = {{-0.7, -0.7}, {0.7, 0.7}}
 scanner.selection_box = {{-1, -1}, {1, 1}}
 scanner.max_health = 150
+scanner.allow_copy_paste = false
 table.insert(scanner.flags, "hide-alt-info")
+table.insert(scanner.flags, "not-rotatable")
 data:extend{scanner}

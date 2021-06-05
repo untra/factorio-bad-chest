@@ -93,18 +93,19 @@ function on_built(event)
 
   -- If entity is a scanner, set defaults and add it to the list
   if entity.name == "recursive-blueprints-scanner" then
-    local settings = {
-      top = -32,
-      left = -32,
-      bottom = 32,
-      right = 32,
+    local scanner = {
+      x = -32,
+      y = -32,
+      width = 64,
+      height = 64,
     }
     if event.source and event.source.valid then
       -- Copy settings from clone
-      settings = table.deepcopy(global.scanners[source.unit_number])
+      scanner = table.deepcopy(global.scanners[source.unit_number])
     end
-    settings.scanner = entity
-    global.scanners[entity.unit_number] = settings
+    scanner.entity = entity
+    global.scanners[entity.unit_number] = scanner
+    script.register_on_entity_destroyed(entity)
   end
 
   -- If entity is a blueprint deployer, cache circuit network connections
@@ -526,12 +527,29 @@ function on_built_carriage(entity, tags)
 end
 
 function on_entity_destroyed(event)
-  -- Look for completed train fuel item-request-proxy
   if not event.unit_number then return end
+  -- Train fuel item-request-proxy
   local carriage = global.fuel_requests[event.unit_number]
-  global.fuel_requests[event.unit_number] = nil
-  if carriage and carriage.valid and carriage.train then
-    enable_automatic_mode(carriage.train)
+  if carriage then
+    global.fuel_requests[event.unit_number] = nil
+    if carriage.valid and carriage.train then
+      enable_automatic_mode(carriage.train)
+    end
+    return
+  end
+  -- Resource scanner
+  local scanner = global.scanners[event.unit_number]
+  if scanner then
+    global.scanners[event.unit_number] = nil
+    for _, player in pairs(game.players) do
+      if player.opened
+      and player.opened.object_name == "LuaGuiElement"
+      and player.opened.name == "recursive-blueprints-scanner"
+      and player.opened.tags["recursive-blueprints-id"] == event.unit_number then
+        player.opened.destroy()
+      end
+    end
+    return
   end
 end
 
@@ -780,19 +798,19 @@ function add_titlebar(gui, caption)
   }
 end
 
-function get_scanner_gui(player, scanner)
+function get_scanner_gui(player, entity)
   local gui = player.gui.screen["recursive-blueprints-scanner"]
   if gui then return gui end
-  local settings = global.scanners[scanner.unit_number]
+  local scanner = global.scanners[entity.unit_number]
 
   gui = player.gui.screen.add{
     type = "frame",
     name = "recursive-blueprints-scanner",
     direction = "vertical",
-    tags = {["recursive-blueprints-id"] = scanner.unit_number}
+    tags = {["recursive-blueprints-id"] = entity.unit_number}
   }
   gui.auto_center = true
-  add_titlebar(gui, scanner.localised_name)
+  add_titlebar(gui, entity.localised_name)
   local inner_frame = gui.add{
     type = "frame",
     style = "entity_frame",
@@ -806,11 +824,11 @@ function get_scanner_gui(player, scanner)
   status_flow.add{
     type = "sprite",
     style = "status_image",
-    sprite = STATUS_SPRITE[scanner.status],
+    sprite = STATUS_SPRITE[entity.status],
   }
   status_flow.add{
     type = "label",
-    caption = {STATUS_NAME[scanner.status]},
+    caption = {STATUS_NAME[entity.status]},
   }
   local preview_frame = inner_frame.add{
     type = "frame",
@@ -819,7 +837,7 @@ function get_scanner_gui(player, scanner)
   local preview = preview_frame.add{
     type = "entity-preview",
   }
-  preview.entity = scanner
+  preview.entity = entity
   preview.style.height = 148
   preview.style.horizontally_stretchable = true
   inner_frame.add{
@@ -835,10 +853,10 @@ function get_scanner_gui(player, scanner)
   top_flow.style.horizontally_stretchable = true
   local top_text = top_flow.add{
     type = "textfield",
-    name = "recursive-blueprints-scanner-top",
+    name = "recursive-blueprints-scanner-x",
     numeric = true,
     allow_negative = true,
-    text = settings.top,
+    text = scanner.x,
   }
   top_text.style.size = 40
 
@@ -853,10 +871,10 @@ function get_scanner_gui(player, scanner)
   }
   local left_text = left_flow.add{
     type = "textfield",
-    name = "recursive-blueprints-scanner-left",
+    name = "recursive-blueprints-scanner-y",
     numeric = true,
     allow_negative = true,
-    text = settings.left,
+    text = scanner.y,
   }
   left_text.style.size = 40
 
@@ -869,9 +887,9 @@ function get_scanner_gui(player, scanner)
   minimap_frame.style.horizontal_align = "center"
   local minimap = minimap_frame.add{
     type = "minimap",
-    surface_index = scanner.surface.index,
-    force = scanner.force.name,
-    position = scanner.position,
+    surface_index = entity.surface.index,
+    force = entity.force.name,
+    position = entity.position,
   }
   minimap.style.minimal_width = 16
   minimap.style.minimal_height = 16
@@ -883,10 +901,10 @@ function get_scanner_gui(player, scanner)
   }
   local right_text = right_flow.add{
     type = "textfield",
-    name = "recursive-blueprints-scanner-right",
+    name = "recursive-blueprints-scanner-height",
     numeric = true,
     allow_negative = true,
-    text = settings.right,
+    text = scanner.height,
   }
   right_text.style.size = 40
 
@@ -897,10 +915,10 @@ function get_scanner_gui(player, scanner)
   bottom_flow.style.horizontally_stretchable = true
   local bottom_text = bottom_flow.add{
     type = "textfield",
-    name = "recursive-blueprints-scanner-bottom",
+    name = "recursive-blueprints-scanner-width",
     numeric = true,
     allow_negative = true,
-    text = settings.bottom,
+    text = scanner.width,
   }
   bottom_text.style.size = 40
   return gui
@@ -910,49 +928,52 @@ function on_gui_text_changed(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
-  if name == "recursive-blueprints-scanner-top" then
-    set_scanner_value(event.element.parent.parent.parent, "top", event.element.text)
-  elseif name == "recursive-blueprints-scanner-left" then
-    set_scanner_value(event.element.parent.parent.parent.parent, "left", event.element.text)
-  elseif name == "recursive-blueprints-scanner-bottom" then
-    set_scanner_value(event.element.parent.parent.parent, "bottom", event.element.text)
-  elseif name == "recursive-blueprints-scanner-right" then
-    set_scanner_value(event.element.parent.parent.parent.parent, "right", event.element.text)
+  if name == "recursive-blueprints-scanner-y" then
+    set_scanner_value(event.element.parent.parent.parent.parent, "y", event.element.text)
+  elseif name == "recursive-blueprints-scanner-x" then
+    set_scanner_value(event.element.parent.parent.parent, "x", event.element.text)
+  elseif name == "recursive-blueprints-scanner-height" then
+    set_scanner_value(event.element.parent.parent.parent.parent, "height", event.element.text)
+  elseif name == "recursive-blueprints-scanner-width" then
+    set_scanner_value(event.element.parent.parent.parent, "width", event.element.text)
   end
 end
 
 function set_scanner_value(gui, key, value)
-  local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
-  local new_value = tonumber(value) or 0
-  if settings[key] ~= new_value then
-    settings[key] = new_value
-    scan_resources(settings)
+  local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
+  value = tonumber(value) or 0
+  if value > 1000000 then value = 1000000 end
+  if key == "width" or key == "height" then
+    if value < 0 then value = 0 end
+  end
+  if key == "x" or key == "y" then
+    if value < -1000000 then value = -1000000 end
+  end
+  if scanner[key] ~= value then
+    scanner[key] = value
+    scan_resources(scanner)
     update_scanner_gui(gui)
   end
 end
 
 function update_scanner_gui(gui)
-  local settings = global.scanners[gui.tags["recursive-blueprints-id"]]
-  if not settings then return end
-  if not settings.scanner.valid then return end
+  local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
+  if not scanner then return end
+  if not scanner.entity.valid then return end
 
   local inner_frame = gui.children[2]
   local minimap = inner_frame.children[5].children[2].children[1]
-  local width = settings.right - settings.left
-  local height = settings.bottom - settings.top
   minimap.position = {
-    settings.scanner.position.x + settings.left + width/2,
-    settings.scanner.position.y + settings.top + height/2,
+    scanner.entity.position.x + scanner.x + scanner.width/2,
+    scanner.entity.position.y + scanner.y + scanner.height/2,
   }
-  width = math.abs(width)
-  height = math.abs(height)
-  local largest = math.max(width, height)
+  local largest = math.max(scanner.width, scanner.height)
   if largest == 0 then
     largest = 32
   end
   minimap.zoom = 256 / largest
-  minimap.style.natural_width = width / largest * 256
-  minimap.style.natural_height = height / largest * 256
+  minimap.style.natural_width = scanner.width / largest * 256
+  minimap.style.natural_height = scanner.height / largest * 256
 end
 
 function count_resources(surface, area, resources)
@@ -992,34 +1013,37 @@ function count_resources(surface, area, resources)
   }
 end
 
-function scan_resources(settings)
+function scan_resources(scanner)
+  if not scanner then return end
+  if not scanner.entity.valid then return end
   local resources = {item = {}, fluid = {}}
-  local p = settings.scanner.position
+  local p = scanner.entity.position
   local area = {
-    {p.x + settings.left, p.y + settings.top},
-    {p.x + settings.right, p.y + settings.bottom},
+    {p.x + scanner.x, p.y + scanner.x + scanner.width},
+    {p.x + scanner.y, p.y + scanner.y + scanner.height},
   }
-  local force = settings.scanner.force
-  local surface = settings.scanner.surface
-  local x1 = p.x + settings.left + 1/256
-  local x2 = p.x + settings.right - 1/256
-  local y1 = p.y + settings.top + 1/256
-  local y2 = p.y + settings.bottom - 1/256
+  local force = scanner.entity.force
+  local surface = scanner.entity.surface
+  local x1 = p.x + scanner.x + 1/256
+  local x2 = p.x + scanner.x + scanner.width - 1/256
+  local y1 = p.y + scanner.y + 1/256
+  local y2 = p.y + scanner.y + scanner.height - 1/256
 
   -- Search one chunk at a time
-  for x = x1, x2, 32 do
-    for y = y1, y2, 32 do
-      local left = math.floor(x / 32) * 32
-      local top = math.floor(y / 32) * 32
-      local right = math.ceil(x / 32) * 32
-      local bottom = math.ceil(y / 32) * 32
-      if x == x1 then left = x end
-      if y == y1 then top = y end
-      if x > x2 then right = x2 end
-      if y > y2 then bottom = y2 end
-      local chunk_position = {math.floor(x / 32), math.floor(y / 32)}
+  for x = x1, math.ceil(x2 / 32) * 32, 32 do
+    for y = y1, math.ceil(y2 / 32) * 32, 32 do
+      local chunk_x = math.floor(x / 32)
+      local chunk_y = math.floor(y / 32)
       -- Chunk must be visible
-      if force.is_chunk_charted(surface, chunk_position) then
+      if force.is_chunk_charted(surface, {chunk_x, chunk_y}) then
+        local left = chunk_x * 32
+        local right = left + 32
+        local top = chunk_y * 32
+        local bottom = top + 32
+        if left < x1 then left = x1 end
+        if right > x2 then right = x2 end
+        if top < y1 then top = y1 end
+        if bottom > y2 then bottom = y2 end
         local area = {{left, top}, {right, bottom}}
         count_resources(surface, area, resources)
       end
@@ -1027,7 +1051,7 @@ function scan_resources(settings)
   end
 
   -- Copy resources to combinator output
-  local behavior = settings.scanner.get_control_behavior()
+  local behavior = scanner.entity.get_control_behavior()
   local index = 1
   for type, resource in pairs(resources) do
     for name, count in pairs(resource) do
@@ -1038,8 +1062,8 @@ function scan_resources(settings)
     end
   end
   -- Set the remaining output slots to nil
-  local max = settings.scanner.prototype.item_slot_count
-  while index <= max do
+  local max = scanner.entity.prototype.item_slot_count
+  while index <= max and behavior.get_signal(index).signal do
     behavior.set_signal(index, nil)
     index = index + 1
   end
@@ -1067,5 +1091,5 @@ script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
 
--- TODO: Add scanner destroyed event, remove gui and settings
+-- TODO: Add scanner destroyed event, remove gui and cached table
 -- TODO: Copy scanner settings to blueprint
