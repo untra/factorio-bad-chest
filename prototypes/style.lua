@@ -10,3 +10,10 @@ data.raw["gui-style"]["default"]["recursive-blueprints-slot"] = {
   maximal_width = 80,
   draw_shadow_under_picture = false,
 }
+
+data.raw["gui-style"]["default"]["recursive-blueprints-scroll"] = {
+  type = "scroll_pane_style",
+  parent = "naked_scroll_pane",
+  padding = 2,
+  maximal_height = 164,
+}

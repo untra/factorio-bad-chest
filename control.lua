@@ -79,6 +79,15 @@ function on_mods_changed(event)
       table.insert(global.blueprint_signals, {name=item.name, type="item"})
     end
   end
+
+  -- Close all scanners
+  for _, player in pairs(game.players) do
+    if player.opened
+    and player.opened.object_name == "LuaGuiElement"
+    and player.opened.name:sub(1, 21) == "recursive-blueprints-" then
+      player.opened = nil
+    end
+  end
 end
 
 function on_built(event)
@@ -880,19 +889,19 @@ function get_scanner_gui(player, entity)
     type = "label",
     caption = {"", {"description.x-offset"}, ":"}
   }
+  x_flow.add{
+    type = "sprite-button",
+    style = "recursive-blueprints-slot",
+    name = "recursive-blueprints-scanner-x"
+  }
   local x_text = x_flow.add{
     type = "textfield",
-    name = "recursive-blueprints-scanner-x",
+    name = "recursive-blueprints-scanner-x-text",
     numeric = true,
     allow_negative = true,
     text = scanner.x,
   }
   x_text.style.size = 40
-  local x_button = x_flow.add{
-    type = "sprite-button",
-    style = "recursive-blueprints-slot",
-  }
-  set_slot_button(x_button, scanner.x, scanner.x_signal)
 
   local y_flow = input_flow.add{
     type = "flow",
@@ -902,9 +911,14 @@ function get_scanner_gui(player, entity)
     type = "label",
     caption = {"", {"description.y-offset"}, ":"}
   }
+  y_flow.add{
+    type = "sprite-button",
+    style = "recursive-blueprints-slot",
+    name = "recursive-blueprints-scanner-y"
+  }
   local y_text = y_flow.add{
     type = "textfield",
-    name = "recursive-blueprints-scanner-y",
+    name = "recursive-blueprints-scanner-y-text",
     numeric = true,
     allow_negative = true,
     text = scanner.y,
@@ -964,53 +978,49 @@ function get_scanner_gui(player, entity)
   minimap.style.maximal_width = 256
   minimap.style.maximal_height = 256
 
+  inner_frame.add{type = "line"}
+
+  inner_frame.add{
+    type = "label",
+    style = "heading_3_label",
+    caption = {"description.output-signals"},
+  }
+  local scroll_pane = inner_frame.add{
+    type = "scroll-pane",
+    style = "recursive-blueprints-scroll",
+    direction = "vertical",
+    horizontal_scroll_policy = "never",
+    vertical_scroll_policy = "auto",
+  }
+  local scroll_frame = scroll_pane.add{
+    type = "frame",
+    style = "entity_button_frame",
+    direction = "vertical",
+  }
+  for i = 1, scanner.entity.prototype.item_slot_count, 10 do
+    local row = scroll_frame.add{
+      type = "flow",
+      style = "packed_horizontal_flow",
+    }
+    for j = 1, 10 do
+      row.add{
+        type = "sprite-button",
+        style = "slot_button",
+        ignored_by_interaction = true
+      }
+    end
+  end
+
   return gui
-end
-
-function set_slot_button(button, value, signal)
-  if not signal then
-    button.caption = format_amount(value)
-    button.style.natural_width = button.caption:len() * 12 + 4
-    return
-  end
-  button.caption = ""
-  button.style.natural_width = 40
-  if signal.type == "item" and game.item_prototypes[signal.name] then
-    button.sprite = "item/" .. signal.name
-  elseif signal.type == "fluid" and game.fluid_prototypes[signal.name] then
-    button.sprite = "fluid/" .. signal.name
-  elseif signal.type == "virtual" and game.virtual_signal_prototypes[signal.name] then
-    button.sprite = "virtual-signal/" .. signal.name
-  else
-    button.sprite = "virtual-signal/signal-unknown"
-  end
-end
-
-function format_amount(amount)
-  if amount >= 1000000000 then
-    return math.floor(amount / 1000000000) .. "G"
-  elseif amount >= 1000000 then
-    return math.floor(amount / 1000000) .. "M"
-  elseif amount >= 1000 then
-    return math.floor(amount / 1000) .. "k"
-  elseif amount > -1000 then
-    return amount
-  elseif amount > -1000000 then
-    return math.ceil(amount / 1000) .. "k"
-  elseif amount > -1000000000 then
-    return math.ceil(amount / 1000000) .. "M"
-  else
-    return math.ceil(amount / 1000000000) .. "G"
-  end
 end
 
 function on_gui_text_changed(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
-  if name == "recursive-blueprints-scanner-y" then
+  if name == "recursive-blueprints-scanner-y-text" then
     set_scanner_value(event.element, "y", event.element.text)
-  elseif name == "recursive-blueprints-scanner-x" then
+  elseif name == "recursive-blueprints-scanner-x-text" then
     set_scanner_value(event.element, "x", event.element.text)
   elseif name == "recursive-blueprints-scanner-height" then
     set_scanner_value(event.element, "height", event.element.text)
@@ -1023,12 +1033,12 @@ function set_scanner_value(element, key, value)
   local gui = element.parent.parent.parent.parent.parent.parent
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
   value = tonumber(value) or 0
-  if value > 1000000 then value = 1000000 end
+  if value > 2000000 then value = 2000000 end
   if key == "width" or key == "height" then
     if value < 0 then value = 0 end
   end
   if key == "x" or key == "y" then
-    if value < -1000000 then value = -1000000 end
+    if value < -2000000 then value = -2000000 end
   end
   if scanner[key] ~= value then
     scanner[key] = value
@@ -1041,6 +1051,10 @@ function update_scanner_gui(gui)
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
   if not scanner then return end
   if not scanner.entity.valid then return end
+
+  local input_flow = gui.children[2].children[3].children[1].children[2]
+  set_slot_button(input_flow.children[1].children[2], scanner.x, scanner.x_signal)
+  set_slot_button(input_flow.children[2].children[2], scanner.y, scanner.y_signal)
 
   local x = scanner.x
   local y = scanner.y
@@ -1062,16 +1076,78 @@ function update_scanner_gui(gui)
   minimap.zoom = 256 / largest
   minimap.style.natural_width = scanner.width / largest * 256
   minimap.style.natural_height = scanner.height / largest * 256
+
+  local behavior = scanner.entity.get_control_behavior()
+  local output_flow = gui.children[2].children[6].children[1]
+  for i = 1, scanner.entity.prototype.item_slot_count do
+    local row = math.ceil(i / 10)
+    local col = (i-1) % 10 + 1
+    local button = output_flow.children[row].children[col]
+    local signal = behavior.get_signal(i)
+    if signal and signal.count ~= 0 and signal.signal and signal.signal.name then
+      button.number = signal.count
+      button.sprite = get_signal_sprite(signal.signal)
+    else
+      button.number = nil
+      button.sprite = nil
+    end
+  end
 end
 
-function count_resources(surface, area, resources)
+function get_signal_sprite(signal)
+  if not signal.name then return end
+  if signal.type == "item" and game.item_prototypes[signal.name] then
+    return "item/" .. signal.name
+  elseif signal.type == "fluid" and game.fluid_prototypes[signal.name] then
+    return "fluid/" .. signal.name
+  elseif signal.type == "virtual" and game.virtual_signal_prototypes[signal.name] then
+    return "virtual-signal/" .. signal.name
+  else
+    return "virtual-signal/signal-unknown"
+  end
+end
+
+function set_slot_button(button, value, signal)
+  if not signal then
+    button.caption = format_amount(value)
+    button.style.natural_width = button.caption:len() * 12 + 4
+    button.style.horizontal_align = "center"
+    return
+  end
+  button.caption = ""
+  button.style.natural_width = 40
+  button.sprite = get_signal_sprite(signal)
+end
+
+function format_amount(amount)
+  if amount >= 1000000000 then
+    return math.floor(amount / 1000000000) .. "G"
+  elseif amount >= 1000000 then
+    return math.floor(amount / 1000000) .. "M"
+  elseif amount >= 1000 then
+    return math.floor(amount / 1000) .. "k"
+  elseif amount > -1000 then
+    return amount
+  elseif amount > -1000000 then
+    return math.ceil(amount / 1000) .. "k"
+  elseif amount > -1000000000 then
+    return math.ceil(amount / 1000000) .. "M"
+  else
+    return math.ceil(amount / 1000000000) .. "G"
+  end
+end
+
+function count_resources(surface, area, resources, blacklist)
   local result = surface.find_entities_filtered{
     area = area,
     force = "neutral",
   }
   for _, resource in pairs(result) do
+    local hash = pos_hash(resource, 0, 0)
     local prototype = resource.prototype
-    if resource.type == "cliff" and global.cliff_explosives then
+    if blacklist[hash] then
+      -- We already counted this
+    elseif resource.type == "cliff" and global.cliff_explosives then
       -- Cliff explosives
       resources.item["cliff-explosives"] = (resources.item["cliff-explosives"] or 0) - 1
     elseif resource.type == "resource" then
@@ -1082,8 +1158,10 @@ function count_resources(surface, area, resources)
         amount = 1
       end
       resources[type][resource.name] = (resources[type][resource.name] or 0) + amount
-    elseif prototype.mineable_properties.minable and prototype.mineable_properties.products then
-      -- Trees, rocks, fish
+    elseif (resource.type == "tree" or resource.type == "fish" or prototype.count_as_rock_for_filtered_deconstruction)
+    and prototype.mineable_properties.minable
+    and prototype.mineable_properties.products then
+      -- Trees, fish, rocks
       for _, product in pairs(prototype.mineable_properties.products) do
         local amount = product.amount
         if product.amount_min and product.amount_max then
@@ -1093,6 +1171,8 @@ function count_resources(surface, area, resources)
         resources[product.type][product.name] = (resources[product.type][product.name] or 0) + amount
       end
     end
+    -- Mark as counted
+    blacklist[hash] = true
   end
   -- Water
   resources.fluid["water"] = (resources.fluid["water"] or 0) + surface.count_tiles_filtered{
@@ -1108,6 +1188,7 @@ function scan_resources(scanner)
   local p = scanner.entity.position
   local force = scanner.entity.force
   local surface = scanner.entity.surface
+  local blacklist = {}
 
   local x = scanner.x
   local y = scanner.y
@@ -1138,7 +1219,7 @@ function scan_resources(scanner)
         if top < y1 then top = y1 end
         if bottom > y2 then bottom = y2 end
         local area = {{left, top}, {right, bottom}}
-        count_resources(surface, area, resources)
+        count_resources(surface, area, resources, blacklist)
       end
     end
   end
