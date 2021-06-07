@@ -94,8 +94,8 @@ function on_built(event)
   -- If entity is a scanner, set defaults and add it to the list
   if entity.name == "recursive-blueprints-scanner" then
     local scanner = {
-      x = -32,
-      y = -32,
+      x = 0,
+      y = 0,
       width = 64,
       height = 64,
     }
@@ -853,45 +853,100 @@ function get_scanner_gui(player, entity)
   preview.entity = entity
   preview.style.height = 148
   preview.style.horizontally_stretchable = true
-  inner_frame.add{
+
+  local main_flow = inner_frame.add{
+    type = "flow",
+  }
+  local left_flow = main_flow.add{
+    type = "flow",
+    direction = "vertical",
+  }
+  left_flow.add{
     type = "label",
     style = "heading_3_label",
-    caption = {"gui-map-editor-script-editor.current-areas"},
+    caption = {"description.scan-area"},
   }
-
-  local top_flow = inner_frame.add{
+  local input_flow = left_flow.add{
     type = "flow",
-    style = "centering_horizontal_flow",
+    direction = "vertical",
   }
-  top_flow.style.horizontally_stretchable = true
-  local top_text = top_flow.add{
+  input_flow.style.horizontal_align = "right"
+
+  local x_flow = input_flow.add{
+    type = "flow",
+  }
+  x_flow.style.vertical_align = "center"
+  x_flow.add{
+    type = "label",
+    caption = {"", {"description.x-offset"}, ":"}
+  }
+  local x_text = x_flow.add{
     type = "textfield",
     name = "recursive-blueprints-scanner-x",
     numeric = true,
     allow_negative = true,
     text = scanner.x,
   }
-  top_text.style.size = 40
-
-  local middle_flow = inner_frame.add{
-    type = "flow",
-    style = "centering_horizontal_flow",
+  x_text.style.size = 40
+  local x_button = x_flow.add{
+    type = "sprite-button",
+    style = "recursive-blueprints-slot",
   }
-  middle_flow.style.horizontally_stretchable = true
+  set_slot_button(x_button, scanner.x, scanner.x_signal)
 
-  local left_flow = middle_flow.add{
+  local y_flow = input_flow.add{
     type = "flow",
   }
-  local left_text = left_flow.add{
+  y_flow.style.vertical_align = "center"
+  y_flow.add{
+    type = "label",
+    caption = {"", {"description.y-offset"}, ":"}
+  }
+  local y_text = y_flow.add{
     type = "textfield",
     name = "recursive-blueprints-scanner-y",
     numeric = true,
     allow_negative = true,
     text = scanner.y,
   }
-  left_text.style.size = 40
+  y_text.style.size = 40
 
-  local minimap_frame = middle_flow.add{
+  local width_flow = input_flow.add{
+    type = "flow",
+  }
+  width_flow.style.vertical_align = "center"
+  width_flow.add{
+    type = "label",
+    caption = {"", {"gui-map-generator.map-width"}, ":"}
+  }
+  local width_text = width_flow.add{
+    type = "textfield",
+    name = "recursive-blueprints-scanner-width",
+    numeric = true,
+    allow_negative = true,
+    text = scanner.width,
+  }
+  width_text.style.size = 40
+  width_flow.add{type="choose-elem-button", elem_type="signal"}
+
+  local height_flow = input_flow.add{
+    type = "flow",
+  }
+  height_flow.style.vertical_align = "center"
+  height_flow.add{
+    type = "label",
+    caption = {"", {"gui-map-generator.map-height"}, ":"}
+  }
+  local height_text = height_flow.add{
+    type = "textfield",
+    name = "recursive-blueprints-scanner-height",
+    numeric = true,
+    allow_negative = true,
+    text = scanner.height,
+  }
+  height_text.style.size = 40
+
+  local minimap_frame = main_flow.add{
     type = "frame",
     style = "entity_button_frame",
   }
@@ -909,32 +964,44 @@ function get_scanner_gui(player, entity)
   minimap.style.maximal_width = 256
   minimap.style.maximal_height = 256
 
-  local right_flow = middle_flow.add{
-    type = "flow",
-  }
-  local right_text = right_flow.add{
-    type = "textfield",
-    name = "recursive-blueprints-scanner-height",
-    numeric = true,
-    allow_negative = true,
-    text = scanner.height,
-  }
-  right_text.style.size = 40
-
-  local bottom_flow = inner_frame.add{
-    type = "flow",
-    style = "centering_horizontal_flow",
-  }
-  bottom_flow.style.horizontally_stretchable = true
-  local bottom_text = bottom_flow.add{
-    type = "textfield",
-    name = "recursive-blueprints-scanner-width",
-    numeric = true,
-    allow_negative = true,
-    text = scanner.width,
-  }
-  bottom_text.style.size = 40
   return gui
+end
+
+function set_slot_button(button, value, signal)
+  if not signal then
+    button.caption = format_amount(value)
+    button.style.natural_width = button.caption:len() * 12 + 4
+    return
+  end
+  button.caption = ""
+  button.style.natural_width = 40
+  if signal.type == "item" and game.item_prototypes[signal.name] then
+    button.sprite = "item/" .. signal.name
+  elseif signal.type == "fluid" and game.fluid_prototypes[signal.name] then
+    button.sprite = "fluid/" .. signal.name
+  elseif signal.type == "virtual" and game.virtual_signal_prototypes[signal.name] then
+    button.sprite = "virtual-signal/" .. signal.name
+  else
+    button.sprite = "virtual-signal/signal-unknown"
+  end
+end
+
+function format_amount(amount)
+  if amount >= 1000000000 then
+    return math.floor(amount / 1000000000) .. "G"
+  elseif amount >= 1000000 then
+    return math.floor(amount / 1000000) .. "M"
+  elseif amount >= 1000 then
+    return math.floor(amount / 1000) .. "k"
+  elseif amount > -1000 then
+    return amount
+  elseif amount > -1000000 then
+    return math.ceil(amount / 1000) .. "k"
+  elseif amount > -1000000000 then
+    return math.ceil(amount / 1000000) .. "M"
+  else
+    return math.ceil(amount / 1000000000) .. "G"
+  end
 end
 
 function on_gui_text_changed(event)
@@ -942,17 +1009,18 @@ function on_gui_text_changed(event)
   local name = event.element.name
   if not name then return end
   if name == "recursive-blueprints-scanner-y" then
-    set_scanner_value(event.element.parent.parent.parent.parent, "y", event.element.text)
+    set_scanner_value(event.element, "y", event.element.text)
   elseif name == "recursive-blueprints-scanner-x" then
-    set_scanner_value(event.element.parent.parent.parent, "x", event.element.text)
+    set_scanner_value(event.element, "x", event.element.text)
   elseif name == "recursive-blueprints-scanner-height" then
-    set_scanner_value(event.element.parent.parent.parent.parent, "height", event.element.text)
+    set_scanner_value(event.element, "height", event.element.text)
   elseif name == "recursive-blueprints-scanner-width" then
-    set_scanner_value(event.element.parent.parent.parent, "width", event.element.text)
+    set_scanner_value(event.element, "width", event.element.text)
   end
 end
 
-function set_scanner_value(gui, key, value)
+function set_scanner_value(element, key, value)
+  local gui = element.parent.parent.parent.parent.parent.parent
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
   value = tonumber(value) or 0
   if value > 1000000 then value = 1000000 end
@@ -982,8 +1050,7 @@ function update_scanner_gui(gui)
     y = y + math.floor(scanner.width/2)
   end
 
-  local inner_frame = gui.children[2]
-  local minimap = inner_frame.children[5].children[2].children[1]
+  local minimap = gui.children[2].children[3].children[2].children[1]
   minimap.position = {
     scanner.entity.position.x + x,
     scanner.entity.position.y + y,
@@ -1089,7 +1156,7 @@ function scan_resources(scanner)
   end
   -- Set the remaining output slots to nil
   local max = scanner.entity.prototype.item_slot_count
-  while index <= max and behavior.get_signal(index).signal do
+  while index <= max do
     behavior.set_signal(index, nil)
     index = index + 1
   end
@@ -1118,5 +1185,5 @@ script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
 
--- TODO: Add scanner destroyed event, remove gui and cached table
 -- TODO: Copy scanner settings to blueprint
+-- TODO: Check for obsolete scanner signals when mods change
