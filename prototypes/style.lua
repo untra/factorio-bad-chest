@@ -11,6 +11,13 @@ data.raw["gui-style"]["default"]["recursive-blueprints-slot"] = {
   draw_shadow_under_picture = false,
 }
 
+data.raw["gui-style"]["default"]["recursive-blueprints-output"] = {
+  type = "button_style",
+  parent = "slot_button",
+  clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["slot_button"].hovered_graphical_set),
+  draw_shadow_under_picture = false,
+}
+
 data.raw["gui-style"]["default"]["recursive-blueprints-scroll"] = {
   type = "scroll_pane_style",
   parent = "naked_scroll_pane",
