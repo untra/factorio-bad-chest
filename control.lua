@@ -1,3 +1,5 @@
+require("util")
+
 -- Command signals
 local DEPLOY_SIGNAL = {name="construction-robot", type="item"}
 local DECONSTRUCT_SIGNAL = {name="deconstruction-planner", type="item"}
@@ -100,21 +102,9 @@ function on_built(event)
     return
   end
 
-  -- If entity is a scanner, set defaults and add it to the list
   if entity.name == "recursive-blueprints-scanner" then
-    local scanner = {
-      x = 0,
-      y = 0,
-      width = 64,
-      height = 64,
-    }
-    if event.source and event.source.valid then
-      -- Copy settings from clone
-      scanner = table.deepcopy(global.scanners[source.unit_number])
-    end
-    scanner.entity = entity
-    global.scanners[entity.unit_number] = scanner
-    script.register_on_entity_destroyed(entity)
+    on_built_scanner(entity, event)
+    return
   end
 
   -- If entity is a blueprint deployer, cache circuit network connections
@@ -535,6 +525,35 @@ function on_built_carriage(entity, tags)
   end
 end
 
+function on_built_scanner(entity, event)
+  local scanner = {
+    x = 0,
+    y = 0,
+    width = 64,
+    height = 64,
+  }
+  local tags = event.tags
+  if event.source and event.source.valid then
+    -- Copy settings from clone
+    tags = util.table.deepcopy(global.scanners[event.source.unit_number])
+  end
+  if tags then
+    -- Copy settings from blueprint tags
+    scanner.x = tags.x
+    scanner.x_signal = tags.x_signal
+    scanner.y = tags.y
+    scanner.y_signal = tags.y_signal
+    scanner.width = tags.width
+    scanner.width_signal = tags.width_signal
+    scanner.height = tags.height
+    scanner.height_signal = tags.height_signal
+  end
+  scanner.entity = entity
+  global.scanners[entity.unit_number] = scanner
+  script.register_on_entity_destroyed(entity)
+  scan_resources(scanner)
+end
+
 function on_entity_destroyed(event)
   if not event.unit_number then return end
   -- Train fuel item-request-proxy
@@ -601,18 +620,29 @@ function on_player_setup_blueprint(event)
   local entities = player.surface.find_entities_filtered {
     area = event.area,
     force = player.force,
-    type = {"locomotive", "cargo-wagon", "fluid-wagon", "artillery-wagon", "straight-rail", "curved-rail"},
+    type = {
+      "locomotive",
+      "cargo-wagon",
+      "fluid-wagon",
+      "artillery-wagon",
+      "straight-rail",
+      "curved-rail",
+      "constant-combinator",
+    },
   }
 
   -- Check for trains in automatic mode
-  local found_train = false
+  local found_tag = false
   for _, entity in pairs(entities) do
     if entity.type == "locomotive" and not entity.train.manual_mode then
-      found_train = true
+      found_tag = true
+      break
+    elseif entity.name == "recursive-blueprints-scanner" then
+      found_tag = true
       break
     end
   end
-  if not found_train then return end
+  if not found_tag then return end
 
   -- Add automatic mode tags to blueprint
   local tags = create_tags(entities)
@@ -628,7 +658,7 @@ end
 
 function on_player_configured_blueprint(event)
   -- Finally, we can access the blueprint!
-  -- Add automatic mode tags to blueprint
+  -- Add custom tags to blueprint
   local tags = global.tag_cache[event.player_index]
   local bp = get_nested_blueprint(game.players[event.player_index].cursor_stack)
   if tags and bp and bp.valid_for_read and bp.is_blueprint then
@@ -698,14 +728,25 @@ function create_tags(entities)
       position = entity.position,
     }
 
-    -- Write the automatic mode tag
-    -- Also save the train length, to tell when the train is finished building
     if entity.train and not entity.train.manual_mode then
+      -- Write the automatic mode tag
+      -- Also save the train length, to tell when the train is finished building
       tag.automatic_mode = true
       tag.length = #entity.train.carriages
+    elseif entity.name == "recursive-blueprints-scanner" then
+      -- Write the scanner settings
+      local scanner = global.scanners[entity.unit_number]
+      tag.x = scanner.x
+      tag.x_signal = scanner.x_signal
+      tag.y = scanner.y
+      tag.y_signal = scanner.y_signal
+      tag.width = scanner.width
+      tag.width_signal = scanner.width_signal
+      tag.height = scanner.height
+      tag.height_signal = scanner.height_signal
     end
 
-    -- Save the entity even if it is not a train in automatic mode
+    -- Save the entity even if it has not custom tags
     -- This ensures that the offset is calculated correctly
     result[pos_hash(entity, 0, 0)] = tag
   end
@@ -725,18 +766,31 @@ function add_tags_to_blueprint(tags, blueprint)
   local offset = calculate_offset(tags, blueprint_entities)
   if not offset then return end
 
-  -- Search for matching train carriages
+  -- Search for matching entities with custom tags
   local found = false
   for _, entity in pairs(blueprint_entities) do
-    local carriage = tags[pos_hash(entity, offset.x, offset.y)]
-    if carriage and carriage.automatic_mode then
-      -- Add tags to the blueprint entity
-      if not entity.tags then
-        entity.tags = {}
+    local settings = tags[pos_hash(entity, offset.x, offset.y)]
+    if settings then
+      if settings.automatic_mode then
+        -- Add train tags
+        if not entity.tags then entity.tags = {} end
+        entity.tags.manual_mode = false
+        entity.tags.train_length = settings.length
+        found = true
+      elseif settings.width then
+        -- Add scanner tags
+        if not entity.tags then entity.tags = {} end
+        entity.tags.x = settings.x
+        entity.tags.x_signal = settings.x_signal
+        entity.tags.y = settings.y
+        entity.tags.y_signal = settings.y_signal
+        entity.tags.width = settings.width
+        entity.tags.width_signal = settings.width_signal
+        entity.tags.height = settings.height
+        entity.tags.height_signal = settings.height_signal
+        entity.control_behavior = nil
+        found = true
       end
-      entity.tags.manual_mode = false
-      entity.tags.train_length = carriage.length
-      found = true
     end
   end
 
