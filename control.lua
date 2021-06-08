@@ -1059,8 +1059,7 @@ function get_scanner_gui(player, entity)
     for j = 1, 10 do
       row.add{
         type = "sprite-button",
-        style = "slot_button",
-        ignored_by_interaction = true
+        style = "recursive-blueprints-output",
       }
     end
   end
@@ -1141,9 +1140,16 @@ function update_scanner_gui(gui)
     if signal and signal.count ~= 0 and signal.signal and signal.signal.name then
       button.number = signal.count
       button.sprite = get_signal_sprite(signal.signal)
+      button.tooltip = {"",
+       "[font=default-bold][color=255,230,192]",
+       {signal.signal.type .. "-name." .. signal.signal.name},
+       ":[/color][/font] ",
+       util.format_number(signal.count),
+      }
     else
       button.number = nil
       button.sprite = nil
+      button.tooltip = ""
     end
   end
 end
