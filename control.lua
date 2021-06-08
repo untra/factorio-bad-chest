@@ -1207,11 +1207,12 @@ function count_resources(surface, area, resources, blacklist)
     elseif resource.type == "resource" then
       -- Mining drill resources
       local type = prototype.mineable_properties.products[1].type
+      local name = prototype.mineable_properties.products[1].name
       local amount = resource.amount
       if prototype.infinite_resource then
         amount = 1
       end
-      resources[type][resource.name] = (resources[type][resource.name] or 0) + amount
+      resources[type][name] = (resources[type][name] or 0) + amount
     elseif (resource.type == "tree" or resource.type == "fish" or prototype.count_as_rock_for_filtered_deconstruction)
     and prototype.mineable_properties.minable
     and prototype.mineable_properties.products then
@@ -1322,5 +1323,4 @@ script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
 
--- TODO: Copy scanner settings to blueprint
 -- TODO: Check for obsolete scanner signals when mods change
