@@ -1231,8 +1231,10 @@ function scan_resources(scanner)
     for name, count in pairs(resource) do
       -- Avoid int32 overflow
       if count > 2147483647 then count = 2147483647 end
-      behavior.set_signal(index, {signal={type=type, name=name}, count=count})
-      index = index + 1
+      if count ~= 0 then
+        behavior.set_signal(index, {signal={type=type, name=name}, count=count})
+        index = index + 1
+      end
     end
   end
   -- Set the remaining output slots to nil
