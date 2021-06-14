@@ -26,6 +26,7 @@ function on_init()
   global.fuel_requests = {}
   global.networks = {}
   global.scanners = {}
+  global.gui_transition = {}
   on_mods_changed()
 end
 
@@ -699,12 +700,17 @@ function on_gui_opened(event)
 end
 
 function on_gui_closed(event)
-  -- Destroy scanner gui
   if event.gui_type == defines.gui_type.custom
   and event.element
   and event.element.valid
   and event.element.name == "recursive-blueprints-scanner" then
+    -- Destroy scanner gui
     event.element.destroy()
+    -- Destroy signal gui
+    local player = game.get_player(event.player_index)
+    if player.gui.screen["recursive-blueprints-signal"] then
+      player.gui.screen["recursive-blueprints-signal"].destroy()
+    end
   end
 end
 
@@ -712,10 +718,27 @@ function on_gui_click(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
-  if name == "recursive-blueprints-x" then
+  if name == "recursive-blueprints-close" then
     -- Close gui
     event.element.parent.parent.destroy()
+  elseif name == "recursive-blueprints-scanner-x"
+  or name == "recursive-blueprints-scanner-y"
+  or name == "recursive-blueprints-scanner-width"
+  or name == "recursive-blueprints-scanner-height" then
+    -- Open signal or number gui
+    event.element.style = "recursive-blueprints-selected"
+    local player = game.get_player(event.player_index)
+    get_signal_gui(player, event.element)
     return
+  elseif name == "recursive-blueprints-set-constant" then
+    -- Set constant in scanner gui
+    set_scanner_value(
+      game.get_player(event.player_index),
+      event.element.parent.parent.tags["recursive-blueprints-field"],
+      event.element.parent.children[1].text
+    )
+    -- Close signal gui
+    event.element.parent.parent.destroy()
   end
 end
 
@@ -860,15 +883,17 @@ function add_titlebar(gui, caption, close_button_name)
   }
   filler.style.height = 24
   filler.style.horizontally_stretchable = true
-  titlebar.add{
-    type = "sprite-button",
-    name = close_button_name,
-    style = "frame_action_button",
-    sprite = "utility/close_white",
-    hovered_sprite = "utility/close_black",
-    clicked_sprite = "utility/close_black",
-    tooltip = {"gui.close-instruction"},
-  }
+  if close_button_name then
+    titlebar.add{
+      type = "sprite-button",
+      name = close_button_name,
+      style = "frame_action_button",
+      sprite = "utility/close_white",
+      hovered_sprite = "utility/close_black",
+      clicked_sprite = "utility/close_black",
+      tooltip = {"gui.close-instruction"},
+    }
+  end
 end
 
 function get_scanner_gui(player, entity)
@@ -884,7 +909,7 @@ function get_scanner_gui(player, entity)
     tags = {["recursive-blueprints-id"] = entity.unit_number}
   }
   gui.auto_center = true
-  add_titlebar(gui, entity.localised_name, "recursive-blueprints-x")
+  add_titlebar(gui, entity.localised_name, "recursive-blueprints-close")
   local inner_frame = gui.add{
     type = "frame",
     style = "entity_frame",
@@ -948,14 +973,6 @@ function get_scanner_gui(player, entity)
     style = "recursive-blueprints-slot",
     name = "recursive-blueprints-scanner-x"
   }
-  local x_text = x_flow.add{
-    type = "textfield",
-    name = "recursive-blueprints-scanner-x-text",
-    numeric = true,
-    allow_negative = true,
-    text = scanner.x,
-  }
-  x_text.style.size = 40
 
   local y_flow = input_flow.add{
     type = "flow",
@@ -970,14 +987,6 @@ function get_scanner_gui(player, entity)
     style = "recursive-blueprints-slot",
     name = "recursive-blueprints-scanner-y"
   }
-  local y_text = y_flow.add{
-    type = "textfield",
-    name = "recursive-blueprints-scanner-y-text",
-    numeric = true,
-    allow_negative = true,
-    text = scanner.y,
-  }
-  y_text.style.size = 40
 
   local width_flow = input_flow.add{
     type = "flow",
@@ -987,15 +996,11 @@ function get_scanner_gui(player, entity)
     type = "label",
     caption = {"", {"gui-map-generator.map-width"}, ":"}
   }
-  local width_text = width_flow.add{
-    type = "textfield",
-    name = "recursive-blueprints-scanner-width",
-    numeric = true,
-    allow_negative = true,
-    text = scanner.width,
+  width_flow.add{
+    type = "sprite-button",
+    style = "recursive-blueprints-slot",
+    name = "recursive-blueprints-scanner-width"
   }
-  width_text.style.size = 40
-  width_flow.add{type="choose-elem-button", elem_type="signal"}
 
   local height_flow = input_flow.add{
     type = "flow",
@@ -1005,14 +1010,11 @@ function get_scanner_gui(player, entity)
     type = "label",
     caption = {"", {"gui-map-generator.map-height"}, ":"}
   }
-  local height_text = height_flow.add{
-    type = "textfield",
-    name = "recursive-blueprints-scanner-height",
-    numeric = true,
-    allow_negative = true,
-    text = scanner.height,
+  height_flow.add{
+    type = "sprite-button",
+    style = "recursive-blueprints-slot",
+    name = "recursive-blueprints-scanner-height"
   }
-  height_text.style.size = 40
 
   local minimap_frame = main_flow.add{
     type = "frame",
@@ -1067,37 +1069,75 @@ function get_scanner_gui(player, entity)
   return gui
 end
 
-function on_gui_text_changed(event)
-  if not event.element.valid then return end
-  local name = event.element.name
-  if not name then return end
-  if name == "recursive-blueprints-scanner-y-text" then
-    set_scanner_value(event.element, "y", event.element.text)
-  elseif name == "recursive-blueprints-scanner-x-text" then
-    set_scanner_value(event.element, "x", event.element.text)
-  elseif name == "recursive-blueprints-scanner-height" then
-    set_scanner_value(event.element, "height", event.element.text)
-  elseif name == "recursive-blueprints-scanner-width" then
-    set_scanner_value(event.element, "width", event.element.text)
+function get_signal_gui(player, element)
+  local main_gui = element.parent.parent.parent.parent.parent.parent
+  local id = main_gui.tags["recursive-blueprints-id"]
+  local scanner = global.scanners[id]
+  local field = element.name:sub(30)
+
+  if player.gui.screen["recursive-blueprints-signal"] then
+    player.gui.screen["recursive-blueprints-signal"].destroy()
   end
+
+  local gui = player.gui.screen.add{
+    type = "frame",
+    name = "recursive-blueprints-signal",
+    direction = "vertical",
+    tags = {
+      ["recursive-blueprints-id"] = id,
+      ["recursive-blueprints-field"] = field,
+    }
+  }
+  gui.auto_center = true
+  add_titlebar(gui, {"gui.select-signal"}, "recursive-blueprints-close")
+  local inner_frame = gui.add{
+    type = "frame",
+    style = "entity_frame",
+    direction = "vertical",
+  }
+  inner_frame.style.bottom_margin = 4
+  add_titlebar(gui, {"gui.or-set-a-constant"})
+  inner_frame = gui.add{
+    type = "frame",
+    style = "entity_frame",
+    direction = "horizontal",
+  }
+  inner_frame.style.vertical_align = center
+  local textfield = inner_frame.add{
+    type = "textfield",
+    numeric = true,
+    allow_negative = (field == "x" or field == "y"),
+  }
+  textfield.style.width = 83
+  textfield.style.right_margin = 30
+  textfield.style.horizontal_align = "center"
+  if not scanner[field.."_signal"] then
+    textfield.text = tostring(scanner[field])
+  end
+  inner_frame.add{
+    type = "button",
+    style = "green_button",
+    name = "recursive-blueprints-set-constant",
+    caption = {"gui.set"},
+  }
 end
 
-function set_scanner_value(element, key, value)
-  local gui = element.parent.parent.parent.parent.parent.parent
+function set_scanner_value(player, key, value)
+  local gui = player.gui.screen["recursive-blueprints-scanner"]
+  if not gui then return end
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
   value = tonumber(value) or 0
   if value > 2000000 then value = 2000000 end
+  if value < -2000000 then value = -2000000 end
   if key == "width" or key == "height" then
     if value < 0 then value = 0 end
-  end
-  if key == "x" or key == "y" then
-    if value < -2000000 then value = -2000000 end
+    if value > 999 then value = 999 end
   end
   if scanner[key] ~= value then
     scanner[key] = value
     scan_resources(scanner)
-    update_scanner_gui(gui)
   end
+  update_scanner_gui(gui)
 end
 
 function update_scanner_gui(gui)
@@ -1108,6 +1148,8 @@ function update_scanner_gui(gui)
   local input_flow = gui.children[2].children[3].children[1].children[2]
   set_slot_button(input_flow.children[1].children[2], scanner.x, scanner.x_signal)
   set_slot_button(input_flow.children[2].children[2], scanner.y, scanner.y_signal)
+  set_slot_button(input_flow.children[3].children[2], scanner.width, scanner.width_signal)
+  set_slot_button(input_flow.children[4].children[2], scanner.height, scanner.height_signal)
 
   local x = scanner.x
   local y = scanner.y
@@ -1130,14 +1172,17 @@ function update_scanner_gui(gui)
   minimap.style.natural_width = scanner.width / largest * 256
   minimap.style.natural_height = scanner.height / largest * 256
 
-  local behavior = scanner.entity.get_control_behavior()
-  local output_flow = gui.children[2].children[6].children[1]
-  for i = 1, scanner.entity.prototype.item_slot_count do
+  update_scanner_output(gui.children[2].children[6].children[1], scanner.entity)
+end
+
+function update_scanner_output(output_flow, entity)
+  local behavior = entity.get_control_behavior()
+  for i = 1, entity.prototype.item_slot_count do
     local row = math.ceil(i / 10)
     local col = (i-1) % 10 + 1
     local button = output_flow.children[row].children[col]
     local signal = behavior.get_signal(i)
-    if signal and signal.count ~= 0 and signal.signal and signal.signal.name then
+    if signal and signal.signal and signal.signal.name then
       button.number = signal.count
       button.sprite = get_signal_sprite(signal.signal)
       button.tooltip = {"",
@@ -1154,6 +1199,7 @@ function update_scanner_gui(gui)
   end
 end
 
+
 function get_signal_sprite(signal)
   if not signal.name then return end
   if signal.type == "item" and game.item_prototypes[signal.name] then
@@ -1168,10 +1214,10 @@ function get_signal_sprite(signal)
 end
 
 function set_slot_button(button, value, signal)
+  button.style = "recursive-blueprints-slot"
   if not signal then
     button.caption = format_amount(value)
     button.style.natural_width = button.caption:len() * 12 + 4
-    button.style.horizontal_align = "center"
     return
   end
   button.caption = ""
@@ -1249,10 +1295,14 @@ function scan_resources(scanner)
   local p = scanner.entity.position
   local force = scanner.entity.force
   local surface = scanner.entity.surface
-  local blacklist = {}
-
   local x = scanner.x
   local y = scanner.y
+  local blacklist = {}
+
+  -- Align to grid
+  if scanner.width % 2 ~= 0 then x = x + 0.5 end
+  if scanner.height % 2 ~= 0 then y = y + 0.5 end
+
   if settings.global["recursive-blueprints-area"].value == "corner" then
     -- Convert from top left corner to center
     x = x + math.floor(scanner.width/2)
@@ -1313,7 +1363,6 @@ script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_gui_opened, on_gui_opened)
 script.on_event(defines.events.on_gui_closed, on_gui_closed)
 script.on_event(defines.events.on_gui_click, on_gui_click)
-script.on_event(defines.events.on_gui_text_changed, on_gui_text_changed)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
