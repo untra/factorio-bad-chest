@@ -26,7 +26,6 @@ function on_init()
   global.fuel_requests = {}
   global.networks = {}
   global.scanners = {}
-  global.gui_transition = {}
   on_mods_changed()
 end
 
@@ -80,6 +79,51 @@ function on_mods_changed(event)
     or item.type == "upgrade-item"
     or item.type == "deconstruction-item" then
       table.insert(global.blueprint_signals, {name=item.name, type="item"})
+    end
+  end
+
+  -- Collect all visible signals
+  global.groups = {}
+  for _, group in pairs(game.item_group_prototypes) do
+    for _, subgroup in pairs(group.subgroups) do
+      if subgroup.name == "other" or subgroup.name == "virtual-signal-special" then
+        -- Hide special signals
+      else
+        local signals = {}
+        -- Item signals
+        local items = game.get_filtered_item_prototypes{
+          {filter = "subgroup", subgroup = subgroup.name},
+          {filter = "flag", flag = "hidden", invert = true, mode = "and"},
+        }
+        for _, item in pairs(items) do
+          if item.subgroup == subgroup then
+            table.insert(signals, {type = "item", name = item.name})
+          end
+        end
+        -- Fluid signals
+        local fluids = game.get_filtered_fluid_prototypes{
+          {filter = "subgroup", subgroup = subgroup.name},
+          {filter = "hidden", invert = true, mode = "and"},
+        }
+        for _, fluid in pairs(fluids) do
+          if fluid.subgroup == subgroup then
+            table.insert(signals, {type = "fluid", name = fluid.name})
+          end
+        end
+        -- Virtual signals
+        for _, signal in pairs(game.virtual_signal_prototypes) do
+          if signal.subgroup == subgroup then
+            table.insert(signals, {type = "virtual", name = signal.name})
+          end
+        end
+        -- Cache the visible signals
+        if #signals > 0 then
+          if #global.groups == 0 or global.groups[#global.groups].name ~= group.name then
+            table.insert(global.groups, {name = group.name, subgroups = {}})
+          end
+          table.insert(global.groups[#global.groups].subgroups, signals)
+        end
+      end
     end
   end
 
@@ -721,24 +765,37 @@ function on_gui_click(event)
   if name == "recursive-blueprints-close" then
     -- Close gui
     event.element.parent.parent.destroy()
+    reset_input_style(game.get_player(event.player_index))
   elseif name == "recursive-blueprints-scanner-x"
   or name == "recursive-blueprints-scanner-y"
   or name == "recursive-blueprints-scanner-width"
   or name == "recursive-blueprints-scanner-height" then
-    -- Open signal or number gui
-    event.element.style = "recursive-blueprints-selected"
+    -- Open signal gui
+    event.element.style = "recursive-blueprints-slot-selected"
     local player = game.get_player(event.player_index)
     get_signal_gui(player, event.element)
-    return
   elseif name == "recursive-blueprints-set-constant" then
-    -- Set constant in scanner gui
-    set_scanner_value(
-      game.get_player(event.player_index),
-      event.element.parent.parent.tags["recursive-blueprints-field"],
-      event.element.parent.children[1].text
-    )
-    -- Close signal gui
-    event.element.parent.parent.destroy()
+    -- Copy constant from signal gui to scanner gui
+    set_scanner_value(event.player_index, event.element)
+  end
+end
+
+function on_gui_confirmed(event)
+  if not event.element.valid then return end
+  local name = event.element.name
+  if not name then return end
+  if name == "recursive-blueprints-constant" then
+    -- Copy constant from signal gui to scanner gui
+    set_scanner_value(event.player_index, event.element)
+  end
+end
+
+function reset_input_style(player)
+  local gui = player.gui.screen["recursive-blueprints-scanner"]
+  if not gui then return end
+  local input_flow = gui.children[2].children[3].children[1].children[2]
+  for i = 1, 4 do
+    input_flow.children[i].children[2].style = "recursive-blueprints-slot"
   end
 end
 
@@ -1074,6 +1131,7 @@ function get_signal_gui(player, element)
   local id = main_gui.tags["recursive-blueprints-id"]
   local scanner = global.scanners[id]
   local field = element.name:sub(30)
+  local target = scanner[field.."signal"] or {}
 
   if player.gui.screen["recursive-blueprints-signal"] then
     player.gui.screen["recursive-blueprints-signal"].destroy()
@@ -1096,6 +1154,97 @@ function get_signal_gui(player, element)
     direction = "vertical",
   }
   inner_frame.style.bottom_margin = 4
+
+  local scroll_pane = inner_frame.add{
+    type = "scroll-pane",
+    style = "recursive-blueprints-scroll",
+    direction = "vertical",
+    horizontal_scroll_policy = "never",
+    vertical_scroll_policy = "auto",
+  }
+  local scroll_frame = scroll_pane.add{
+    type = "frame",
+    style = "tabbed_pane_frame",
+    direction = "vertical",
+  }
+  for i = 1, #global.groups, 6 do
+    local row = scroll_frame.add{
+      type = "flow",
+      style = "packed_horizontal_flow",
+    }
+    for j = 0, 5 do
+      if i+j <= #global.groups then
+        local name = global.groups[i+j].name
+        row.add{
+          type = "sprite-button",
+          style = "recursive-blueprints-group",
+          sprite = "item-group/" .. name,
+          tooltip = {"item-group-name." .. name},
+        }
+      else
+        row.add{
+          type = "empty-widget",
+          class = "recursive-blueprints-group-bg",
+        }
+      end
+    end
+  end
+
+
+  local tabbed_pane = inner_frame.add{
+    type = "tabbed-pane",
+    style = "tabbed_pane_with_no_side_padding_and_tabs_hidden"
+  }
+  tabbed_pane.style.width = 500
+  for _, group in pairs(global.groups) do
+    local tab = tabbed_pane.add{
+      type = "tab",
+      style = "recursive-blueprints-invisible-tab",
+    }
+    tab.style.width = 64
+    local content = tabbed_pane.add{
+      type = "frame",
+      style = "entity_button_frame",
+      direction = "vertical",
+    }
+    local selected_tab = 1
+    for i = 1, #group.subgroups do
+      for j = 1, #group.subgroups[i], 10 do
+        local row = content.add{
+          type = "flow",
+          class = "recursive-blueprints-flow-debug",
+          style = "packed_horizontal_flow",
+        }
+        for k = 0, 9 do
+          if j+k <= #group.subgroups[i] then
+            local signal = group.subgroups[i][j+k]
+            local button = row.add{
+              type = "sprite-button",
+              style = "recursive-blueprints-filter",
+              sprite = get_signal_sprite(signal),
+              tooltip = {"",
+                "[font=default-bold][color=255,230,192]",
+                get_localised_name(signal),
+                "[/color][/font]",
+              }
+            }
+            if signal.type == target.type and signal.name == target.name then
+              -- Select signal
+              selected_tab = i
+              button.style = "recursive-blueprints-filter-selected"
+            end
+          else
+            row.add{
+              type = "empty-widget",
+              class = "recursive-blueprints-slot-bg",
+            }
+          end
+        end
+      end
+    end
+    tabbed_pane.add_tab(tab, content)
+  end
+
   add_titlebar(gui, {"gui.or-set-a-constant"})
   inner_frame = gui.add{
     type = "frame",
@@ -1105,6 +1254,7 @@ function get_signal_gui(player, element)
   inner_frame.style.vertical_align = center
   local textfield = inner_frame.add{
     type = "textfield",
+    name = "recursive-blueprints-constant",
     numeric = true,
     allow_negative = (field == "x" or field == "y"),
   }
@@ -1122,22 +1272,30 @@ function get_signal_gui(player, element)
   }
 end
 
-function set_scanner_value(player, key, value)
+function set_scanner_value(player_index, element)
+  local player = game.get_player(player_index)
   local gui = player.gui.screen["recursive-blueprints-scanner"]
   if not gui then return end
+  reset_input_style(player)
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
-  value = tonumber(value) or 0
+  local key = element.parent.parent.tags["recursive-blueprints-field"]
+  local value = tonumber(element.parent.children[1].text) or 0
+
   if value > 2000000 then value = 2000000 end
   if value < -2000000 then value = -2000000 end
   if key == "width" or key == "height" then
     if value < 0 then value = 0 end
     if value > 999 then value = 999 end
   end
+
   if scanner[key] ~= value then
     scanner[key] = value
     scan_resources(scanner)
   end
+
   update_scanner_gui(gui)
+  -- Close signal gui
+  element.parent.parent.destroy()
 end
 
 function update_scanner_gui(gui)
@@ -1199,6 +1357,18 @@ function update_scanner_output(output_flow, entity)
   end
 end
 
+function get_localised_name(signal)
+  if not signal.type then return "" end
+  if signal.type == "item" and game.item_prototypes[signal.name] then
+    return game.item_prototypes[signal.name].localised_name
+  elseif signal.type == "fluid" and game.fluid_prototypes[signal.name] then
+    return game.fluid_prototypes[signal.name].localised_name
+  elseif signal.type == "virtual" and game.virtual_signal_prototypes[signal.name] then
+    return game.virtual_signal_prototypes[signal.name].localised_name
+  else
+    return {signal.name}
+  end
+end
 
 function get_signal_sprite(signal)
   if not signal.name then return end
@@ -1214,15 +1384,21 @@ function get_signal_sprite(signal)
 end
 
 function set_slot_button(button, value, signal)
-  button.style = "recursive-blueprints-slot"
-  if not signal then
+  if signal then
+    button.caption = ""
+    button.style.natural_width = 40
+    button.sprite = get_signal_sprite(signal)
+    button.tooltip = {"",
+      "[font=default-bold][color=255,230,192]",
+      get_localised_name(signal),
+      "[/color][/font]",
+    }
+  else
     button.caption = format_amount(value)
     button.style.natural_width = button.caption:len() * 12 + 4
-    return
+    button.sprite = nil
+    button.tooltip = {"gui.constant-number"}
   end
-  button.caption = ""
-  button.style.natural_width = 40
-  button.sprite = get_signal_sprite(signal)
 end
 
 function format_amount(amount)
@@ -1363,6 +1539,7 @@ script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_gui_opened, on_gui_opened)
 script.on_event(defines.events.on_gui_closed, on_gui_closed)
 script.on_event(defines.events.on_gui_click, on_gui_click)
+script.on_event(defines.events.on_gui_confirmed, on_gui_confirmed)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
