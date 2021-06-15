@@ -57,6 +57,7 @@ data.raw["gui-style"]["default"]["recursive-blueprints-scroll"] = {
 data.raw["gui-style"]["default"]["recursive-blueprints-invisible-tab"] = {
   type = "tab_style",
   height = 0,
+  padding = 0,
 }
 
 data.raw["gui-style"]["default"]["recursive-blueprints-group-bg"] = {
@@ -73,13 +74,11 @@ data.raw["gui-style"]["default"]["recursive-blueprints-slot-bg"] = {
 
 data.raw["gui-style"]["default"]["recursive-blueprints-group"] = {
   type = "button_style",
-  height = 64,
-  width = 64,
+  height = 70,
+  width = 70,
   padding = 4,
-  default_graphical_set =
-  {
-    base =
-    {
+  default_graphical_set = {
+    base = {
       -- basically button without bottom side
       left_top = {position = {0, 17}, size = {8, 8}},
       left = {position = {0, 25}, size = {8, 1}},
@@ -93,10 +92,8 @@ data.raw["gui-style"]["default"]["recursive-blueprints-group"] = {
     },
     shadow = default_glow(default_shadow_color, 0.5)
   },
-  selected_graphical_set =
-  {
-    base =
-    {
+  selected_graphical_set = {
+    base = {
       left_top = {position = {68, 0}, size = {8, 8}},
       left = {position = {68, 8}, size = {8, 1}},
       left_bottom = {position = {136, 9}, size = {8, 8}},
@@ -109,10 +106,8 @@ data.raw["gui-style"]["default"]["recursive-blueprints-group"] = {
     },
     shadow = default_glow(default_shadow_color, 0.5)
   },
-  hover_graphical_set =
-  {
-    base =
-    {
+  hover_graphical_set = {
+    base = {
       left_top = {position = {34, 17}, size = {8, 8}},
       left = {position = {34, 25}, size = {8, 1}},
       left_bottom = {position = {34, 25}, size = {8, 1}},
@@ -125,21 +120,17 @@ data.raw["gui-style"]["default"]["recursive-blueprints-group"] = {
     },
     glow = default_glow(default_glow_color, 0.5)
   },
-  press_graphical_set =
-  {
+  press_graphical_set = {
     base = {position = {51, 17}, corner_size = 8},
     shadow = default_glow(default_glow_color, 0.5)
   },
-  disabled_graphical_set =
-  {
+  disabled_graphical_set = {
     base = {position = {208, 17}, corner_size = 8},
     shadow = default_glow(default_shadow_color, 0.5)
   },
   override_graphics_on_edges = true,
-  left_edge_selected_graphical_set =
-  {
-    base =
-    {
+  left_edge_selected_graphical_set = {
+    base = {
       left_top = {position = {68, 0}, size = {8, 8}},
       left = {position = {68, 8}, size = {8, 1}},
       left_bottom = {position = {68, 4}, size = {8, 8}}, -- cutout from size of no.5 tile, need 8x8 for image set to work right.
@@ -152,10 +143,8 @@ data.raw["gui-style"]["default"]["recursive-blueprints-group"] = {
     },
     shadow = default_glow(default_shadow_color, 0.5)
   },
-  right_edge_selected_graphical_set =
-  {
-    base =
-    {
+  right_edge_selected_graphical_set = {
+    base = {
       left_top = {position = {68, 0}, size = {8, 8}},
       left = {position = {68, 8}, size = {8, 1}},
       left_bottom = {position = {136, 9}, size = {8, 8}},

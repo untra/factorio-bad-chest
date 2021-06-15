@@ -1148,27 +1148,19 @@ function get_signal_gui(player, element)
   }
   gui.auto_center = true
   add_titlebar(gui, {"gui.select-signal"}, "recursive-blueprints-close")
-  local inner_frame = gui.add{
-    type = "frame",
-    style = "entity_frame",
-    direction = "vertical",
-  }
-  inner_frame.style.bottom_margin = 4
 
-  local scroll_pane = inner_frame.add{
+  local scroll_pane = gui.add{
     type = "scroll-pane",
     style = "recursive-blueprints-scroll",
     direction = "vertical",
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
-  local scroll_frame = scroll_pane.add{
-    type = "frame",
-    style = "tabbed_pane_frame",
-    direction = "vertical",
-  }
+  scroll_pane.style.top_margin = 2
+  scroll_pane.style.left_margin = 2
+  scroll_pane.style.right_margin = 2
   for i = 1, #global.groups, 6 do
-    local row = scroll_frame.add{
+    local row = scroll_pane.add{
       type = "flow",
       style = "packed_horizontal_flow",
     }
@@ -1190,7 +1182,12 @@ function get_signal_gui(player, element)
     end
   end
 
-
+  local inner_frame = gui.add{
+    type = "frame",
+    style = "entity_frame",
+    direction = "vertical",
+  }
+  inner_frame.style.bottom_margin = 4
   local tabbed_pane = inner_frame.add{
     type = "tabbed-pane",
     style = "tabbed_pane_with_no_side_padding_and_tabs_hidden"
