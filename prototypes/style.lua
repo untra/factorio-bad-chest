@@ -61,20 +61,11 @@ data.raw["gui-style"]["default"]["recursive-blueprints-gui"] = {
   }
 }
 
--- #1 Container for fake tab buttons
-data.raw["gui-style"]["default"]["recursive-blueprints-group-flow"] = {
-  type = "horizontal_flow_style",
-  parent = "packed_horizontal_flow",
-  top_padding = 0,
-  bottom_padding = 0,
-  left_padding = 1,
-  right_padding = 1,
-}
-
--- inside_shallow_frame without top
+-- Real tab container
 data.raw["gui-style"]["default"]["recursive-blueprints-tabbed-pane"] = {
   type = "tabbed_pane_style",
   tab_content_frame = {
+    -- inside_shallow_frame without top
     type = "frame_style",
     padding = 12,
     graphical_set = {
@@ -103,6 +94,17 @@ data.raw["gui-style"]["default"]["recursive-blueprints-tabbed-pane"] = {
   }
 }
 
+-- Fake tab container
+data.raw["gui-style"]["default"]["recursive-blueprints-tab-bar"] = {
+  type = "horizontal_flow_style",
+  parent = "packed_horizontal_flow",
+  top_padding = 0,
+  bottom_padding = 0,
+  left_padding = 1,
+  right_padding = 1,
+}
+
+-- Real tab button
 data.raw["gui-style"]["default"]["recursive-blueprints-invisible-tab"] = {
   type = "tab_style",
   width = 0,
@@ -110,14 +112,8 @@ data.raw["gui-style"]["default"]["recursive-blueprints-invisible-tab"] = {
   font = "recursive-blueprints-invisible-font",
 }
 
-data.raw["gui-style"]["default"]["recursive-blueprints-group-bg"] = {
-  type = "empty_widget_style",
-  width = 64,
-  height = 64,
-}
-
--- #2 Tab buttons
-data.raw["gui-style"]["default"]["recursive-blueprints-tab-button"] = {
+-- Fake tab buttons
+local tab_button = {
   type = "button_style",
   minimal_width = 64,
   height = 64,
@@ -128,24 +124,21 @@ data.raw["gui-style"]["default"]["recursive-blueprints-tab-button"] = {
   clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["tab"].pressed_graphical_set),
   left_click_sound = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_tab"].left_click_sound),
 }
+data.raw["gui-style"]["default"]["recursive-blueprints-tab-button"] = tab_button
 
--- #2 Selected tab button
-local tab_button_selected = table.deepcopy(data.raw["gui-style"]["default"]["recursive-blueprints-tab-button"])
-tab_button_selected.default_graphical_set = {
-  base = {position = {136, 0}, corner_size = 8},
-  shadow = tab_glow(default_shadow_color, 0.5),
-}
+local tab_button_selected = table.deepcopy(tab_button)
+tab_button_selected.default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_tab"].default_graphical_set)
 tab_button_selected.hovered_graphical_set = tab_button_selected.default_graphical_set
 tab_button_selected.clicked_graphical_set = tab_button_selected.default_graphical_set
 data.raw["gui-style"]["default"]["recursive-blueprints-tab-button-selected"] = tab_button_selected
 
-local tab_button_left = table.deepcopy(tab_button_selected)
+local tab_button_left = table.deepcopy(tab_button)
 tab_button_left.default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_tab"].left_edge_selected_graphical_set)
 tab_button_left.hovered_graphical_set = tab_button_left.default_graphical_set
 tab_button_left.clicked_graphical_set = tab_button_left.default_graphical_set
 data.raw["gui-style"]["default"]["recursive-blueprints-tab-button-left"] = tab_button_left
 
-local tab_button_right = table.deepcopy(tab_button_selected)
+local tab_button_right = table.deepcopy(tab_button)
 tab_button_right.default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_tab"].right_edge_selected_graphical_set)
 tab_button_right.hovered_graphical_set = tab_button_right.default_graphical_set
 tab_button_right.clicked_graphical_set = tab_button_right.default_graphical_set

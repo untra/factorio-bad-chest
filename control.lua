@@ -1228,7 +1228,7 @@ function get_signal_gui(player, element)
   for i = 1, #global.groups, 6 do
     local row = tab_bar.add{
       type = "flow",
-      style = "recursive-blueprints-group-flow",
+      style = "recursive-blueprints-tab-bar",
     }
     row.style.bottom_padding = 0
     for j = 0, 5 do
