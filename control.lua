@@ -924,7 +924,7 @@ function calculate_offset(table1, table2)
   end
 end
 
-function add_titlebar(gui, caption, close_button_name)
+function add_titlebar(gui, caption, close_button_name, close_button_tooltip)
   local titlebar = gui.add{type = "flow"}
   titlebar.drag_target = gui
   titlebar.add{
@@ -948,7 +948,7 @@ function add_titlebar(gui, caption, close_button_name)
       sprite = "utility/close_white",
       hovered_sprite = "utility/close_black",
       clicked_sprite = "utility/close_black",
-      tooltip = {"gui.close-instruction"},
+      tooltip = close_button_tooltip,
     }
   end
 end
@@ -966,7 +966,7 @@ function get_scanner_gui(player, entity)
     tags = {["recursive-blueprints-id"] = entity.unit_number}
   }
   gui.auto_center = true
-  add_titlebar(gui, entity.localised_name, "recursive-blueprints-close")
+  add_titlebar(gui, entity.localised_name, "recursive-blueprints-close", {"gui.close-instruction"})
   local inner_frame = gui.add{
     type = "frame",
     style = "entity_frame",
@@ -1105,21 +1105,25 @@ function get_scanner_gui(player, entity)
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
+  scroll_pane.style.maximal_height = 164
   local scroll_frame = scroll_pane.add{
     type = "frame",
-    style = "entity_button_frame",
+    style = "recursive-blueprints-scroll-frame",
     direction = "vertical",
   }
-  for i = 1, scanner.entity.prototype.item_slot_count, 10 do
+  local slots = scanner.entity.prototype.item_slot_count
+  for i = 1, slots, 10 do
     local row = scroll_frame.add{
       type = "flow",
       style = "packed_horizontal_flow",
     }
-    for j = 1, 10 do
-      row.add{
-        type = "sprite-button",
-        style = "recursive-blueprints-output",
-      }
+    for j = 0, 9 do
+      if i+j <= slots then
+        row.add{
+          type = "sprite-button",
+          style = "recursive-blueprints-output",
+        }
+      end
     end
   end
 
@@ -1140,6 +1144,7 @@ function get_signal_gui(player, element)
   local gui = player.gui.screen.add{
     type = "frame",
     name = "recursive-blueprints-signal",
+    style = "recursive-blueprints-gui",
     direction = "vertical",
     tags = {
       ["recursive-blueprints-id"] = id,
@@ -1147,69 +1152,49 @@ function get_signal_gui(player, element)
     }
   }
   gui.auto_center = true
+
   add_titlebar(gui, {"gui.select-signal"}, "recursive-blueprints-close")
 
-  local scroll_pane = gui.add{
+  -- Add tab bar, but don't add tabs until we know which one is selected
+  local tab_bar = gui.add{
     type = "scroll-pane",
-    style = "recursive-blueprints-scroll",
+    style = "naked_scroll_pane",
     direction = "vertical",
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
-  scroll_pane.style.top_margin = 2
-  scroll_pane.style.left_margin = 2
-  scroll_pane.style.right_margin = 2
-  for i = 1, #global.groups, 6 do
-    local row = scroll_pane.add{
-      type = "flow",
-      style = "packed_horizontal_flow",
-    }
-    for j = 0, 5 do
-      if i+j <= #global.groups then
-        local name = global.groups[i+j].name
-        row.add{
-          type = "sprite-button",
-          style = "recursive-blueprints-group",
-          sprite = "item-group/" .. name,
-          tooltip = {"item-group-name." .. name},
-        }
-      else
-        row.add{
-          type = "empty-widget",
-          class = "recursive-blueprints-group-bg",
-        }
-      end
-    end
-  end
+  tab_bar.style.top_margin = 4
+  local selected_tab = 1
 
-  local inner_frame = gui.add{
-    type = "frame",
-    style = "entity_frame",
-    direction = "vertical",
-  }
-  inner_frame.style.bottom_margin = 4
-  local tabbed_pane = inner_frame.add{
+  -- Add tab pane
+  local tabbed_pane = gui.add{
     type = "tabbed-pane",
-    style = "tabbed_pane_with_no_side_padding_and_tabs_hidden"
+    style = "recursive-blueprints-tabbed-pane",
   }
-  tabbed_pane.style.width = 500
+  tabbed_pane.style.bottom_margin = 4
   for _, group in pairs(global.groups) do
     local tab = tabbed_pane.add{
       type = "tab",
       style = "recursive-blueprints-invisible-tab",
     }
-    tab.style.width = 64
-    local content = tabbed_pane.add{
+    local scroll_pane = tabbed_pane.add{
+      type = "scroll-pane",
+      style = "recursive-blueprints-scroll",
+      direction = "vertical",
+      horizontal_scroll_policy = "never",
+      vertical_scroll_policy = "auto",
+    }
+    scroll_pane.style.height = 364
+    local scroll_frame = scroll_pane.add{
       type = "frame",
-      style = "entity_button_frame",
+      style = "recursive-blueprints-scroll-frame",
       direction = "vertical",
     }
-    local selected_tab = 1
+    -- Add signals
     for i = 1, #group.subgroups do
       for j = 1, #group.subgroups[i], 10 do
-        local row = content.add{
+        local row = scroll_frame.add{
           type = "flow",
-          class = "recursive-blueprints-flow-debug",
           style = "packed_horizontal_flow",
         }
         for k = 0, 9 do
@@ -1226,24 +1211,50 @@ function get_signal_gui(player, element)
               }
             }
             if signal.type == target.type and signal.name == target.name then
-              -- Select signal
+              -- This is the selected signal!
               selected_tab = i
               button.style = "recursive-blueprints-filter-selected"
+              scroll_pane.scroll_to_element(button)
             end
-          else
-            row.add{
-              type = "empty-widget",
-              class = "recursive-blueprints-slot-bg",
-            }
           end
         end
       end
     end
-    tabbed_pane.add_tab(tab, content)
+    tabbed_pane.add_tab(tab, scroll_pane)
+  end
+  tabbed_pane.selected_tab_index = selected_tab
+
+  -- Add tab buttons to tab bar
+  for i = 1, #global.groups, 6 do
+    local row = tab_bar.add{
+      type = "flow",
+      style = "recursive-blueprints-group-flow",
+    }
+    row.style.bottom_padding = 0
+    for j = 0, 5 do
+      if i+j <= #global.groups then
+        local name = global.groups[i+j].name
+        local button = row.add{
+          type = "sprite-button",
+          style = "recursive-blueprints-tab-button",
+          sprite = "item-group/" .. name,
+          tooltip = {"item-group-name." .. name},
+        }
+        if i+j == selected_tab then
+          if selected_tab == 1 then
+            button.style = "recursive-blueprints-tab-button-left"
+          elseif selected_tab == #global.groups then
+            button.style = "recursive-blueprints-tab-button-right"
+          else
+            button.style = "recursive-blueprints-tab-button-selected"
+          end
+        end
+      end
+    end
   end
 
   add_titlebar(gui, {"gui.or-set-a-constant"})
-  inner_frame = gui.add{
+  local inner_frame = gui.add{
     type = "frame",
     style = "entity_frame",
     direction = "horizontal",
