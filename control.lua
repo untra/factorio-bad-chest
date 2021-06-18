@@ -1,5 +1,5 @@
 require("util")
-require("lualib.gui")
+require("lualib.scanner")
 
 -- Command signals
 local DEPLOY_SIGNAL = {name="construction-robot", type="item"}
