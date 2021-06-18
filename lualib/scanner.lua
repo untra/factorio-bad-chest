@@ -46,10 +46,10 @@ function destroy_gui(gui)
   end
   -- Destroy gui
   gui.destroy()
-  -- Turn off highlighted scanner button
   reset_scanner_gui_style(screen)
 end
 
+-- Turn off highlighted scanner button
 function reset_scanner_gui_style(screen)
   local gui = screen["recursive-blueprints-scanner"]
   if not gui then return end
@@ -59,6 +59,7 @@ function reset_scanner_gui_style(screen)
   end
 end
 
+-- Add a titlebar with a drag area and close [X] button
 function add_titlebar(gui, caption, close_button_name, close_button_tooltip)
   local titlebar = gui.add{type = "flow"}
   titlebar.drag_target = gui
@@ -88,12 +89,16 @@ function add_titlebar(gui, caption, close_button_name, close_button_tooltip)
   end
 end
 
+-- Build the scanner gui
 function create_scanner_gui(player, entity)
   local scanner = global.scanners[entity.unit_number]
+
+  -- Destroy any old versions
   if player.gui.screen["recursive-blueprints-scanner"] then
     player.gui.screen["recursive-blueprints-scanner"].destroy()
   end
 
+  -- Heading
   local gui = player.gui.screen.add{
     type = "frame",
     name = "recursive-blueprints-scanner",
@@ -108,6 +113,7 @@ function create_scanner_gui(player, entity)
     direction = "vertical",
   }
 
+  -- Status indicator
   local status_flow = inner_frame.add{
     type = "flow",
     style = "status_flow",
@@ -122,7 +128,6 @@ function create_scanner_gui(player, entity)
     type = "label",
     caption = {STATUS_NAME[entity.status]},
   }
-
   local preview_frame = inner_frame.add{
     type = "frame",
     style = "entity_button_frame",
@@ -134,6 +139,7 @@ function create_scanner_gui(player, entity)
   preview.style.height = 148
   preview.style.horizontally_stretchable = true
 
+  -- Scan area
   local main_flow = inner_frame.add{
     type = "flow",
   }
@@ -153,6 +159,7 @@ function create_scanner_gui(player, entity)
   }
   input_flow.style.horizontal_align = "right"
 
+  -- X button and label
   local x_flow = input_flow.add{
     type = "flow",
   }
@@ -167,6 +174,7 @@ function create_scanner_gui(player, entity)
     name = "recursive-blueprints-scanner-x"
   }
 
+  -- Y button and label
   local y_flow = input_flow.add{
     type = "flow",
   }
@@ -181,6 +189,7 @@ function create_scanner_gui(player, entity)
     name = "recursive-blueprints-scanner-y"
   }
 
+  -- Width button and label
   local width_flow = input_flow.add{
     type = "flow",
   }
@@ -195,6 +204,7 @@ function create_scanner_gui(player, entity)
     name = "recursive-blueprints-scanner-width"
   }
 
+  -- Height button and label
   local height_flow = input_flow.add{
     type = "flow",
   }
@@ -209,6 +219,7 @@ function create_scanner_gui(player, entity)
     name = "recursive-blueprints-scanner-height"
   }
 
+  -- Minimap
   local minimap_frame = main_flow.add{
     type = "frame",
     style = "entity_button_frame",
@@ -229,6 +240,7 @@ function create_scanner_gui(player, entity)
 
   inner_frame.add{type = "line"}
 
+  -- Output signals
   inner_frame.add{
     type = "label",
     style = "heading_3_label",
@@ -263,10 +275,12 @@ function create_scanner_gui(player, entity)
     end
   end
 
+  -- Display current values
   update_scanner_gui(gui)
   return gui
 end
 
+-- Build the "select a signal or constant" gui
 function create_signal_gui(element)
   local screen = element.gui.screen
   local primary_gui = element.parent.parent.parent.parent.parent.parent
@@ -274,12 +288,16 @@ function create_signal_gui(element)
   local scanner = global.scanners[id]
   local field = element.name:sub(30)
   local target = scanner[field.."signal"] or {}
+
+  -- Highlight the button that opened the gui
   element.style = "recursive-blueprints-slot-selected"
 
+  -- Destroy any old version
   if screen["recursive-blueprints-signal"] then
     screen["recursive-blueprints-signal"].destroy()
   end
 
+  -- Heading
   local gui = screen.add{
     type = "frame",
     name = "recursive-blueprints-signal",
@@ -320,17 +338,20 @@ function create_signal_gui(element)
     end
   end
 
-  -- Add tab pane
+  -- Signals are stored in a tabbed pane
   local tabbed_pane = inner_frame.add{
     type = "tabbed-pane",
     style = "recursive-blueprints-tabbed-pane",
   }
   tabbed_pane.style.bottom_margin = 4
   for _, group in pairs(global.groups) do
+    -- We can't display images in tabbed-pane tabs,
+    -- so make them invisible and use fake image tabs instead.
     local tab = tabbed_pane.add{
       type = "tab",
       style = "recursive-blueprints-invisible-tab",
     }
+    -- Add scrollbars in case there are too many signals
     local scroll_pane = tabbed_pane.add{
       type = "scroll-pane",
       style = "recursive-blueprints-scroll",
@@ -374,13 +395,14 @@ function create_signal_gui(element)
         end
       end
     end
+    -- Add the invisible tabs and visible signals to the tabbed-pane
     tabbed_pane.add_tab(tab, scroll_pane)
   end
   if #tabbed_pane.tabs >= 1 then
     tabbed_pane.selected_tab_index = selected_tab
   end
 
-  -- Add tab buttons to tab bar
+  -- Fake tab buttons with images
   for i = 1, #global.groups, 6 do
     local row = tab_bar.add{
       type = "flow",
@@ -400,6 +422,7 @@ function create_signal_gui(element)
         else
           button.caption = {"item-group-name." .. name}
         end
+        -- Highlight selected tab
         if i+j == selected_tab then
           if j == 0 then
             button.style = "recursive-blueprints-tab-button-left"
@@ -414,6 +437,7 @@ function create_signal_gui(element)
     end
   end
 
+  -- Set a constant
   add_titlebar(gui, {"gui.or-set-a-constant"})
   local inner_frame = gui.add{
     type = "frame",
@@ -443,6 +467,7 @@ function create_signal_gui(element)
   return gui
 end
 
+-- Copy constant value from signal gui to scanner gui
 function set_scanner_value(player_index, element)
   local screen = element.gui.screen
   local gui = screen["recursive-blueprints-scanner"]
@@ -452,54 +477,66 @@ function set_scanner_value(player_index, element)
   local key = element.parent.parent.tags["recursive-blueprints-field"]
   local value = tonumber(element.parent.children[1].text) or 0
 
+  -- Out of bounds check
   if value > 2000000 then value = 2000000 end
   if value < -2000000 then value = -2000000 end
+
+  -- Limit width/height to 999 for better performance
   if key == "width" or key == "height" then
     if value < 0 then value = 0 end
     if value > 999 then value = 999 end
   end
 
+  -- Run a scan if the area has changed
   if scanner[key] ~= value then
     scanner[key] = value
     scan_resources(scanner)
   end
 
+  -- The user might have changed a signal without changing the area,
+  -- so always refresh the gui.
   update_scanner_gui(gui)
+
   -- Close signal gui
   element.parent.parent.destroy()
 end
 
+-- Switch tabs
 function set_signal_gui_tab(element, index)
   local tab_bar = element.parent.parent
-  -- Unselect old tab
+  -- Un-highlight old tab button
   for i = 1, #tab_bar.children do
     for j = 1, #tab_bar.children[i].children do
       tab_bar.children[i].children[j].style = "recursive-blueprints-tab-button"
     end
   end
-  -- Select new tab
-  local col = index % 6
-  if col == 1 then
+  -- Highlight new tab button
+  local column = index % 6
+  if column == 1 then
     element.style = "recursive-blueprints-tab-button-left"
-  elseif col == 0 then
-    element.style = "recursive-blueprints-tab-button-left"
+  elseif column == 0 then
+    element.style = "recursive-blueprints-tab-button-right"
   else
     element.style = "recursive-blueprints-tab-button-selected"
   end
+  -- Show new tab content
   tab_bar.parent.parent.children[2].selected_tab_index = index
 end
 
+-- Populate gui with the latest data
 function update_scanner_gui(gui)
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
   if not scanner then return end
   if not scanner.entity.valid then return end
 
+  -- Update area dimensions
   local input_flow = gui.children[2].children[3].children[1].children[2]
   set_slot_button(input_flow.children[1].children[2], scanner.x, scanner.x_signal)
   set_slot_button(input_flow.children[2].children[2], scanner.y, scanner.y_signal)
   set_slot_button(input_flow.children[3].children[2], scanner.width, scanner.width_signal)
   set_slot_button(input_flow.children[4].children[2], scanner.height, scanner.height_signal)
 
+  -- Update minimap
   local x = scanner.x
   local y = scanner.y
   if settings.global["recursive-blueprints-area"].value == "corner" then
@@ -507,7 +544,6 @@ function update_scanner_gui(gui)
     x = x + math.floor(scanner.width/2)
     y = y + math.floor(scanner.width/2)
   end
-
   local minimap = gui.children[2].children[3].children[2].children[1]
   minimap.position = {
     scanner.entity.position.x + x,
@@ -524,14 +560,17 @@ function update_scanner_gui(gui)
   update_scanner_output(gui.children[2].children[6].children[1], scanner.entity)
 end
 
+-- Display all constant-combinator output signals in the gui
 function update_scanner_output(output_flow, entity)
   local behavior = entity.get_control_behavior()
   for i = 1, entity.prototype.item_slot_count do
+    -- 10 signals per row
     local row = math.ceil(i / 10)
     local col = (i-1) % 10 + 1
     local button = output_flow.children[row].children[col]
     local signal = behavior.get_signal(i)
     if signal and signal.signal and signal.signal.name then
+      -- Display signal and value
       button.number = signal.count
       button.sprite = get_signal_sprite(signal.signal)
       button.tooltip = {"",
@@ -541,6 +580,7 @@ function update_scanner_output(output_flow, entity)
        util.format_number(signal.count),
       }
     else
+      -- Display empty slot
       button.number = nil
       button.sprite = nil
       button.tooltip = ""
@@ -548,6 +588,7 @@ function update_scanner_output(output_flow, entity)
   end
 end
 
+-- Format data for the signal-or-number button
 function set_slot_button(button, value, signal)
   if signal then
     button.caption = ""
@@ -566,6 +607,7 @@ function set_slot_button(button, value, signal)
   end
 end
 
+-- Scan the area for resources
 function scan_resources(scanner)
   if not scanner then return end
   if not scanner.entity.valid then return end
@@ -587,6 +629,7 @@ function scan_resources(scanner)
     y = y + math.floor(scanner.width/2)
   end
 
+  -- Subtract 1 pixel from the edges to avoid tile overlap
   local x1 = p.x + x - scanner.width/2 + 1/256
   local x2 = p.x + x + scanner.width/2 - 1/256
   local y1 = p.y + y - scanner.height/2 - 1/256
@@ -634,6 +677,7 @@ function scan_resources(scanner)
   end
 end
 
+-- Count the resources in a chunk
 function count_resources(surface, area, resources, blacklist)
   local result = surface.find_entities_filtered{
     area = area,
@@ -693,16 +737,27 @@ function get_signal_sprite(signal)
 end
 
 function get_localised_name(signal)
-  if not signal.type then return "" end
-  if signal.type == "item" and game.item_prototypes[signal.name] then
-    return game.item_prototypes[signal.name].localised_name
-  elseif signal.type == "fluid" and game.fluid_prototypes[signal.name] then
-    return game.fluid_prototypes[signal.name].localised_name
-  elseif signal.type == "virtual" and game.virtual_signal_prototypes[signal.name] then
-    return game.virtual_signal_prototypes[signal.name].localised_name
-  else
-    return {signal.name}
+  if not signal.type or not signal.name then return "" end
+  if signal.type == "item" then
+    if game.item_prototypes[signal.name] then
+      return game.item_prototypes[signal.name].localised_name
+    else
+      return {"item-name." .. signal.name}
+    end
+  elseif signal.type == "fluid" then
+    if game.fluid_prototypes[signal.name] then
+      return game.fluid_prototypes[signal.name].localised_name
+    else
+      return {"fluid-name." .. signal.name}
+    end
+  elseif signal.type == "virtual" then
+    if game.virtual_signal_prototypes[signal.name] then
+      return game.virtual_signal_prototypes[signal.name].localised_name
+    else
+      return {"virtual-signal-name." .. signal.name}
+    end
   end
+  return ""
 end
 
 function format_amount(amount)
