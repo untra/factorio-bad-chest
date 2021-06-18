@@ -53,55 +53,20 @@ data.raw["gui-style"]["default"]["recursive-blueprints-scroll-frame"] = {
   minimal_height = 40,
 }
 
-data.raw["gui-style"]["default"]["recursive-blueprints-gui"] = {
-  type = "frame_style",
-  vertical_flow_style = {
-    type = "vertical_flow_style",
-    vertical_spacing = 0,
-  }
-}
-
--- Real tab container
 data.raw["gui-style"]["default"]["recursive-blueprints-tabbed-pane"] = {
   type = "tabbed_pane_style",
   tab_content_frame = {
-    -- inside_shallow_frame without top
     type = "frame_style",
-    padding = 12,
+    top_padding = 8,
+    bottom_padding = 6,
+    left_padding = 10,
+    right_padding = 10,
     graphical_set = {
       base = {
-        right = {position = {26, 8}, size = {8, 1}},
-        left = {position = {17, 8}, size = {8, 1}},
-        left_bottom = {position = {17, 9}, size = {8, 8}},
-        bottom = {position = {25, 9}, size = {1, 8}},
-        right_bottom = {position = {26, 9}, size = {8, 8}},
-        center = {position = {76, 8}, size = {1, 1}},
-        scale = 0.5,
-        draw_type = "outer",
+        center = table.deepcopy(data.raw["gui-style"]["default"]["filter_tabbed_pane"].tab_content_frame.graphical_set.base.center)
       },
-      shadow = {
-        right = {position = {192, 136}, size = {8, 1}},
-        left = {position = {183, 136}, size = {8, 1}},
-        left_bottom = {position = {183, 137}, size = {8, 8}},
-        bottom = {position = {191, 137}, size = {1, 8}},
-        right_bottom = {position = {192, 137}, size = {8, 8}},
-        center = {position = {191, 136}, size = {1, 1}},
-        tint = {0, 0, 0, 1},
-        scale = 0.5,
-        draw_type = "inner",
-      },
-    }
-  }
-}
-
--- Fake tab container
-data.raw["gui-style"]["default"]["recursive-blueprints-tab-bar"] = {
-  type = "horizontal_flow_style",
-  parent = "packed_horizontal_flow",
-  top_padding = 0,
-  bottom_padding = 0,
-  left_padding = 1,
-  right_padding = 1,
+    },
+  },
 }
 
 -- Real tab button
@@ -117,7 +82,7 @@ local tab_button = {
   type = "button_style",
   minimal_width = 64,
   height = 64,
-  padding = 4,
+  padding = 0,
   horizontally_stretchable = "on",
   default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["tab"].default_graphical_set),
   hovered_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["tab"].hover_graphical_set),

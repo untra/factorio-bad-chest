@@ -1144,7 +1144,6 @@ function get_signal_gui(player, element)
   local gui = player.gui.screen.add{
     type = "frame",
     name = "recursive-blueprints-signal",
-    style = "recursive-blueprints-gui",
     direction = "vertical",
     tags = {
       ["recursive-blueprints-id"] = id,
@@ -1152,22 +1151,25 @@ function get_signal_gui(player, element)
     }
   }
   gui.auto_center = true
-
   add_titlebar(gui, {"gui.select-signal"}, "recursive-blueprints-close")
+  local inner_frame = gui.add{
+    type = "frame",
+    style = "inside_shallow_frame",
+    direction = "vertical",
+  }
 
   -- Add tab bar, but don't add tabs until we know which one is selected
-  local tab_bar = gui.add{
+  local tab_bar = inner_frame.add{
     type = "scroll-pane",
     style = "naked_scroll_pane",
     direction = "vertical",
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
-  tab_bar.style.top_margin = 4
   local selected_tab = 1
 
   -- Add tab pane
-  local tabbed_pane = gui.add{
+  local tabbed_pane = inner_frame.add{
     type = "tabbed-pane",
     style = "recursive-blueprints-tabbed-pane",
   }
@@ -1228,9 +1230,8 @@ function get_signal_gui(player, element)
   for i = 1, #global.groups, 6 do
     local row = tab_bar.add{
       type = "flow",
-      style = "recursive-blueprints-tab-bar",
+      style = "packed_horizontal_flow",
     }
-    row.style.bottom_padding = 0
     for j = 0, 5 do
       if i+j <= #global.groups then
         local name = global.groups[i+j].name
