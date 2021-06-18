@@ -1003,6 +1003,7 @@ function create_scanner_gui(player, entity)
     type = "flow",
     direction = "vertical",
   }
+  left_flow.style.right_margin = 8
   left_flow.add{
     type = "label",
     style = "heading_3_label",
