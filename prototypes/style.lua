@@ -34,6 +34,12 @@ data.raw["gui-style"]["default"]["recursive-blueprints-output"] = {
   draw_shadow_under_picture = false,
 }
 
+data.raw["gui-style"]["default"]["recursive-blueprints-set-button"] = {
+  type = "button_style",
+  parent = "green_button",
+  tooltip = "",
+}
+
 data.raw["gui-style"]["default"]["recursive-blueprints-filter"] = {
   type = "button_style",
   parent = "slot_button",
@@ -53,6 +59,28 @@ data.raw["gui-style"]["default"]["recursive-blueprints-scroll-frame"] = {
   minimal_height = 40,
 }
 
+local graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_table"].background_graphical_set)
+graphical_set.overall_tiling_vertical_spacing = 18
+graphical_set.overall_tiling_vertical_padding = 9
+graphical_set.overall_tiling_horizontal_spacing = 23
+graphical_set.overall_tiling_horizontal_padding = 11
+data.raw["gui-style"]["default"]["recursive-blueprints-scroll-frame2"] = {
+  type = "frame_style",
+  parent = "filter_scroll_pane_background_frame",
+  width = 420,
+  minimal_height = 64,
+  graphical_set = {
+    base = {
+      center = table.deepcopy(data.raw["gui-style"]["default"]["slot_container_frame"].graphical_set.base.center)
+    },
+  },
+  background_graphical_set = graphical_set,
+  vertical_flow_style = {
+    type = "vertical_flow_style",
+    vertical_spacing = 0,
+  }
+}
+
 data.raw["gui-style"]["default"]["recursive-blueprints-tabbed-pane"] = {
   type = "tabbed_pane_style",
   tab_content_frame = {
@@ -61,6 +89,7 @@ data.raw["gui-style"]["default"]["recursive-blueprints-tabbed-pane"] = {
     bottom_padding = 6,
     left_padding = 10,
     right_padding = 10,
+    top_margin = 2,
     graphical_set = {
       base = {
         center = table.deepcopy(data.raw["gui-style"]["default"]["filter_tabbed_pane"].tab_content_frame.graphical_set.base.center)
@@ -80,10 +109,13 @@ data.raw["gui-style"]["default"]["recursive-blueprints-invisible-tab"] = {
 -- Fake tab buttons
 local tab_button = {
   type = "button_style",
-  minimal_width = 64,
+  width = 71,
   height = 64,
   padding = 0,
-  horizontally_stretchable = "on",
+  font = "default-game",
+  default_font_color = {255, 255, 255},
+  hovered_font_color = {255, 255, 255},
+  clicked_font_color = {255, 255, 255},
   default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["tab"].default_graphical_set),
   hovered_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["tab"].hover_graphical_set),
   clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["tab"].pressed_graphical_set),
@@ -92,7 +124,7 @@ local tab_button = {
 data.raw["gui-style"]["default"]["recursive-blueprints-tab-button"] = tab_button
 
 local tab_button_selected = table.deepcopy(tab_button)
-tab_button_selected.default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_tab"].default_graphical_set)
+tab_button_selected.default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["filter_group_tab"].selected_graphical_set)
 tab_button_selected.hovered_graphical_set = tab_button_selected.default_graphical_set
 tab_button_selected.clicked_graphical_set = tab_button_selected.default_graphical_set
 data.raw["gui-style"]["default"]["recursive-blueprints-tab-button-selected"] = tab_button_selected

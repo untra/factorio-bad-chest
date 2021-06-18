@@ -709,7 +709,6 @@ function on_player_configured_blueprint(event)
   if tags and bp and bp.valid_for_read and bp.is_blueprint then
     add_tags_to_blueprint(global.tag_cache[event.player_index], bp)
   end
-
   -- Discard old tags
   global.tag_cache[event.player_index] = nil
 end
@@ -731,15 +730,13 @@ function on_gui_opened(event)
   and event.item.is_blueprint then
     global.tag_cache[event.player_index] = nil
   end
-  -- Replace scanner gui
+  -- Replace constant-combinator gui with a custom scanner gui
   if event.gui_type == defines.gui_type.entity
   and event.entity
   and event.entity.valid
   and event.entity.name == "recursive-blueprints-scanner" then
     local player = game.get_player(event.player_index)
-    local gui = get_scanner_gui(player, event.entity)
-    update_scanner_gui(gui)
-    player.opened = gui
+    player.opened = create_scanner_gui(player, event.entity)
   end
 end
 
@@ -748,13 +745,7 @@ function on_gui_closed(event)
   and event.element
   and event.element.valid
   and event.element.name == "recursive-blueprints-scanner" then
-    -- Destroy scanner gui
-    event.element.destroy()
-    -- Destroy signal gui
-    local player = game.get_player(event.player_index)
-    if player.gui.screen["recursive-blueprints-signal"] then
-      player.gui.screen["recursive-blueprints-signal"].destroy()
-    end
+    destroy_gui(event.element)
   end
 end
 
@@ -762,22 +753,29 @@ function on_gui_click(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
+  if name:sub(1, 21) ~= "recursive-blueprints-" then return end
+
   if name == "recursive-blueprints-close" then
-    -- Close gui
-    event.element.parent.parent.destroy()
-    reset_input_style(game.get_player(event.player_index))
-  elseif name == "recursive-blueprints-scanner-x"
-  or name == "recursive-blueprints-scanner-y"
-  or name == "recursive-blueprints-scanner-width"
-  or name == "recursive-blueprints-scanner-height" then
-    -- Open signal gui
-    event.element.style = "recursive-blueprints-slot-selected"
-    local player = game.get_player(event.player_index)
-    get_signal_gui(player, event.element)
+    destroy_gui(event.element.parent.parent)
+  elseif name:sub(1, 29) == "recursive-blueprints-scanner-" then
+    create_signal_gui(event.element)
   elseif name == "recursive-blueprints-set-constant" then
-    -- Copy constant from signal gui to scanner gui
     set_scanner_value(event.player_index, event.element)
+  elseif name:sub(1, 32) == "recursive-blueprints-tab-button-" then
+    set_signal_gui_tab(event.element, tonumber(name:sub(33)))
   end
+end
+
+function destroy_gui(gui)
+  -- Destroy dependent gui
+  local screen = gui.gui.screen
+  if gui.name == "recursive-blueprints-scanner" and screen["recursive-blueprints-signal"] then
+    screen["recursive-blueprints-signal"].destroy()
+  end
+  -- Destroy gui
+  gui.destroy()
+  -- Turn off highlighted scanner button
+  reset_scanner_gui_style(screen)
 end
 
 function on_gui_confirmed(event)
@@ -785,13 +783,12 @@ function on_gui_confirmed(event)
   local name = event.element.name
   if not name then return end
   if name == "recursive-blueprints-constant" then
-    -- Copy constant from signal gui to scanner gui
     set_scanner_value(event.player_index, event.element)
   end
 end
 
-function reset_input_style(player)
-  local gui = player.gui.screen["recursive-blueprints-scanner"]
+function reset_scanner_gui_style(screen)
+  local gui = screen["recursive-blueprints-scanner"]
   if not gui then return end
   local input_flow = gui.children[2].children[3].children[1].children[2]
   for i = 1, 4 do
@@ -953,7 +950,7 @@ function add_titlebar(gui, caption, close_button_name, close_button_tooltip)
   end
 end
 
-function get_scanner_gui(player, entity)
+function create_scanner_gui(player, entity)
   local scanner = global.scanners[entity.unit_number]
   if player.gui.screen["recursive-blueprints-scanner"] then
     player.gui.screen["recursive-blueprints-scanner"].destroy()
@@ -1127,21 +1124,24 @@ function get_scanner_gui(player, entity)
     end
   end
 
+  update_scanner_gui(gui)
   return gui
 end
 
-function get_signal_gui(player, element)
-  local main_gui = element.parent.parent.parent.parent.parent.parent
-  local id = main_gui.tags["recursive-blueprints-id"]
+function create_signal_gui(element)
+  local screen = element.gui.screen
+  local primary_gui = element.parent.parent.parent.parent.parent.parent
+  local id = primary_gui.tags["recursive-blueprints-id"]
   local scanner = global.scanners[id]
   local field = element.name:sub(30)
   local target = scanner[field.."signal"] or {}
+  element.style = "recursive-blueprints-slot-selected"
 
-  if player.gui.screen["recursive-blueprints-signal"] then
-    player.gui.screen["recursive-blueprints-signal"].destroy()
+  if screen["recursive-blueprints-signal"] then
+    screen["recursive-blueprints-signal"].destroy()
   end
 
-  local gui = player.gui.screen.add{
+  local gui = screen.add{
     type = "frame",
     name = "recursive-blueprints-signal",
     direction = "vertical",
@@ -1159,14 +1159,27 @@ function get_signal_gui(player, element)
   }
 
   -- Add tab bar, but don't add tabs until we know which one is selected
-  local tab_bar = inner_frame.add{
+  local scroll_pane = inner_frame.add{
     type = "scroll-pane",
     style = "naked_scroll_pane",
     direction = "vertical",
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
+  scroll_pane.style.maximal_height = 132
+  local tab_bar = scroll_pane.add{
+    type = "frame",
+    style = "recursive-blueprints-scroll-frame2",
+    direction = "vertical",
+  }
+
+  -- Open the signals tab if nothing is selected
   local selected_tab = 1
+  for i = 1, #global.groups do
+    if global.groups[i].name == "signals" then
+      selected_tab = i
+    end
+  end
 
   -- Add tab pane
   local tabbed_pane = inner_frame.add{
@@ -1224,7 +1237,9 @@ function get_signal_gui(player, element)
     end
     tabbed_pane.add_tab(tab, scroll_pane)
   end
-  tabbed_pane.selected_tab_index = selected_tab
+  if #tabbed_pane.tabs >= 1 then
+    tabbed_pane.selected_tab_index = selected_tab
+  end
 
   -- Add tab buttons to tab bar
   for i = 1, #global.groups, 6 do
@@ -1238,17 +1253,23 @@ function get_signal_gui(player, element)
         local button = row.add{
           type = "sprite-button",
           style = "recursive-blueprints-tab-button",
-          sprite = "item-group/" .. name,
+          name = "recursive-blueprints-tab-button-" .. (i+j),
           tooltip = {"item-group-name." .. name},
         }
+        if game.is_valid_sprite_path("item-group/" .. name) then
+          button.sprite = "item-group/" .. name
+        else
+          button.caption = {"item-group-name." .. name}
+        end
         if i+j == selected_tab then
-          if selected_tab == 1 then
+          if j == 0 then
             button.style = "recursive-blueprints-tab-button-left"
-          elseif selected_tab == #global.groups then
+          elseif j == 5 then
             button.style = "recursive-blueprints-tab-button-right"
           else
             button.style = "recursive-blueprints-tab-button-selected"
           end
+          button.parent.parent.parent.scroll_to_element(button)
         end
       end
     end
@@ -1275,17 +1296,19 @@ function get_signal_gui(player, element)
   end
   inner_frame.add{
     type = "button",
-    style = "green_button",
+    style = "recursive-blueprints-set-button",
     name = "recursive-blueprints-set-constant",
     caption = {"gui.set"},
   }
+
+  return gui
 end
 
 function set_scanner_value(player_index, element)
-  local player = game.get_player(player_index)
-  local gui = player.gui.screen["recursive-blueprints-scanner"]
+  local screen = element.gui.screen
+  local gui = screen["recursive-blueprints-scanner"]
   if not gui then return end
-  reset_input_style(player)
+  reset_scanner_gui_style(screen)
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
   local key = element.parent.parent.tags["recursive-blueprints-field"]
   local value = tonumber(element.parent.children[1].text) or 0
@@ -1305,6 +1328,26 @@ function set_scanner_value(player_index, element)
   update_scanner_gui(gui)
   -- Close signal gui
   element.parent.parent.destroy()
+end
+
+function set_signal_gui_tab(element, index)
+  local tab_bar = element.parent.parent
+  -- Unselect old tab
+  for i = 1, #tab_bar.children do
+    for j = 1, #tab_bar.children[i].children do
+      tab_bar.children[i].children[j].style = "recursive-blueprints-tab-button"
+    end
+  end
+  -- Select new tab
+  local col = index % 6
+  if col == 1 then
+    element.style = "recursive-blueprints-tab-button-left"
+  elseif col == 0 then
+    element.style = "recursive-blueprints-tab-button-left"
+  else
+    element.style = "recursive-blueprints-tab-button-selected"
+  end
+  tab_bar.parent.parent.children[2].selected_tab_index = index
 end
 
 function update_scanner_gui(gui)
