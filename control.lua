@@ -127,6 +127,15 @@ function on_mods_changed(event)
   end
 end
 
+function on_setting_changed(event)
+  if event.setting == "recursive-blueprints-area" then
+    -- Refresh scanners
+    for _, scanner in pairs(global.scanners) do
+      scan_resources(scanner)
+    end
+  end
+end
+
 function on_tick()
   -- Check one deployer per tick for new circuit network connections
   local index = global.deployer_index
@@ -264,15 +273,6 @@ function on_player_configured_blueprint(event)
   end
   -- Discard old tags
   global.tag_cache[event.player_index] = nil
-end
-
-function on_setting_changed(event)
-  if event.setting == "recursive-blueprints-area" then
-    -- Refresh scanners
-    for _, scanner in pairs(global.scanners) do
-      scan_resources(scanner)
-    end
-  end
 end
 
 function on_gui_opened(event)

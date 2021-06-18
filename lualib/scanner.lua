@@ -315,7 +315,7 @@ function create_signal_gui(element)
     direction = "vertical",
   }
 
-  -- Add tab bar, but don't add tabs until we know which one is selected
+  -- Create tab bar, but don't add tabs until we know which one is selected
   local scroll_pane = inner_frame.add{
     type = "scroll-pane",
     style = "naked_scroll_pane",
