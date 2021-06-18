@@ -117,7 +117,7 @@ function on_mods_changed(event)
     end
   end
 
-  -- Close all scanners
+  -- Close all scanner guis
   for _, player in pairs(game.players) do
     if player.opened
     and player.opened.object_name == "LuaGuiElement"
@@ -126,6 +126,8 @@ function on_mods_changed(event)
     end
   end
 end
+
+-- TODO: Test for obsolete scanner signals when mods change
 
 function on_setting_changed(event)
   if event.setting == "recursive-blueprints-area" then
@@ -313,11 +315,14 @@ function on_gui_click(event)
     -- Remove gui
     destroy_gui(event.element.parent.parent)
   elseif name:sub(1, 29) == "recursive-blueprints-scanner-" then
-    -- Use the signal gui to select value for the scanner gui
+    -- Open the signal gui to pick a value
     create_signal_gui(event.element)
   elseif name == "recursive-blueprints-set-constant" then
     -- Copy constant value back to scanner gui
-    set_scanner_value(event.player_index, event.element)
+    set_scanner_value(event.element)
+  elseif name:sub(1, 28) == "recursive-blueprints-signal-" then
+    -- Copy signal back to scanner gui
+    set_scanner_signal(event.element)
   elseif name:sub(1, 32) == "recursive-blueprints-tab-button-" then
     -- Switch tabs
     set_signal_gui_tab(event.element, tonumber(name:sub(33)))
@@ -888,5 +893,3 @@ script.on_event(defines.events.on_entity_cloned, on_built, filter)
 script.on_event(defines.events.on_robot_built_entity, on_built, filter)
 script.on_event(defines.events.script_raised_built, on_built, filter)
 script.on_event(defines.events.script_raised_revive, on_built, filter)
-
--- TODO: Check for obsolete scanner signals when mods change

@@ -1,3 +1,4 @@
+-- Entity status lookup tables
 local STATUS_NAME = {
   [defines.entity_status.working] = "entity-status.working",
   [defines.entity_status.disabled] = "entity-status.disabled",
@@ -283,19 +284,26 @@ end
 -- Build the "select a signal or constant" gui
 function create_signal_gui(element)
   local screen = element.gui.screen
-  local primary_gui = element.parent.parent.parent.parent.parent.parent
+  local primary_gui = screen["recursive-blueprints-scanner"]
   local id = primary_gui.tags["recursive-blueprints-id"]
   local scanner = global.scanners[id]
   local field = element.name:sub(30)
-  local target = scanner[field.."signal"] or {}
+  local target = scanner[field.."_signal"] or {}
 
   -- Highlight the button that opened the gui
+  reset_scanner_gui_style(screen)
   element.style = "recursive-blueprints-slot-selected"
 
   -- Destroy any old version
   if screen["recursive-blueprints-signal"] then
     screen["recursive-blueprints-signal"].destroy()
   end
+
+  -- Place gui slightly to the right of center
+  local location = primary_gui.location
+  local scale = game.get_player(element.player_index).display_scale
+  location.x = location.x + 126 * scale
+  location.y = location.y - 60 * scale
 
   -- Heading
   local gui = screen.add{
@@ -307,7 +315,7 @@ function create_signal_gui(element)
       ["recursive-blueprints-field"] = field,
     }
   }
-  gui.auto_center = true
+  gui.location = location
   add_titlebar(gui, {"gui.select-signal"}, "recursive-blueprints-close")
   local inner_frame = gui.add{
     type = "frame",
@@ -337,6 +345,7 @@ function create_signal_gui(element)
       selected_tab = i
     end
   end
+  local matching_button = nil
 
   -- Signals are stored in a tabbed pane
   local tabbed_pane = inner_frame.add{
@@ -344,7 +353,7 @@ function create_signal_gui(element)
     style = "recursive-blueprints-tabbed-pane",
   }
   tabbed_pane.style.bottom_margin = 4
-  for _, group in pairs(global.groups) do
+  for g, group in pairs(global.groups) do
     -- We can't display images in tabbed-pane tabs,
     -- so make them invisible and use fake image tabs instead.
     local tab = tabbed_pane.add{
@@ -377,25 +386,27 @@ function create_signal_gui(element)
             local signal = group.subgroups[i][j+k]
             local button = row.add{
               type = "sprite-button",
-              style = "recursive-blueprints-filter",
+              style = "slot_button",
+              name = "recursive-blueprints-signal-"..g.."-"..i.."-"..(j+k),
               sprite = get_signal_sprite(signal),
+              tags = {["recursive-blueprints-signal"] = signal},
               tooltip = {"",
                 "[font=default-bold][color=255,230,192]",
                 get_localised_name(signal),
                 "[/color][/font]",
-              }
+              },
             }
             if signal.type == target.type and signal.name == target.name then
               -- This is the selected signal!
-              selected_tab = i
-              button.style = "recursive-blueprints-filter-selected"
-              scroll_pane.scroll_to_element(button)
+              button.style = "recursive-blueprints-signal-selected"
+              scroll_pane.scroll_to_element(button, "top-third")
+              selected_tab = g
             end
           end
         end
       end
     end
-    -- Add the invisible tabs and visible signals to the tabbed-pane
+    -- Add the invisible tabs and visible signal pages to the tabbed-pane
     tabbed_pane.add_tab(tab, scroll_pane)
   end
   if #tabbed_pane.tabs >= 1 then
@@ -454,7 +465,9 @@ function create_signal_gui(element)
   textfield.style.width = 83
   textfield.style.right_margin = 30
   textfield.style.horizontal_align = "center"
-  if not scanner[field.."_signal"] then
+  if scanner[field.."_signal"] then
+    textfield.text = "0"
+  else
     textfield.text = tostring(scanner[field])
   end
   inner_frame.add{
@@ -468,13 +481,13 @@ function create_signal_gui(element)
 end
 
 -- Copy constant value from signal gui to scanner gui
-function set_scanner_value(player_index, element)
+function set_scanner_value(element)
   local screen = element.gui.screen
   local gui = screen["recursive-blueprints-scanner"]
   if not gui then return end
-  reset_scanner_gui_style(screen)
   local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
-  local key = element.parent.parent.tags["recursive-blueprints-field"]
+  local signal_gui = element.parent.parent
+  local key = signal_gui.tags["recursive-blueprints-field"]
   local value = tonumber(element.parent.children[1].text) or 0
 
   -- Out of bounds check
@@ -487,6 +500,9 @@ function set_scanner_value(player_index, element)
     if value > 999 then value = 999 end
   end
 
+  -- Disable signal
+  scanner[key.."_signal"] = nil
+
   -- Run a scan if the area has changed
   if scanner[key] ~= value then
     scanner[key] = value
@@ -496,9 +512,27 @@ function set_scanner_value(player_index, element)
   -- The user might have changed a signal without changing the area,
   -- so always refresh the gui.
   update_scanner_gui(gui)
+  reset_scanner_gui_style(screen)
 
   -- Close signal gui
-  element.parent.parent.destroy()
+  signal_gui.destroy()
+end
+
+-- Copy signal from signal gui to scanner gui
+function set_scanner_signal(element)
+  local signal_gui = element.parent.parent.parent.parent.parent.parent
+  local screen = element.gui.screen
+  local scanner_gui = screen["recursive-blueprints-scanner"]
+  if not scanner_gui then return end
+  local scanner = global.scanners[scanner_gui.tags["recursive-blueprints-id"]]
+  local key = signal_gui.tags["recursive-blueprints-field"]
+
+  scanner[key.."_signal"] = element.tags["recursive-blueprints-signal"]
+  update_scanner_gui(scanner_gui)
+  reset_scanner_gui_style(screen)
+
+  -- Close signal gui
+  signal_gui.destroy()
 end
 
 -- Switch tabs

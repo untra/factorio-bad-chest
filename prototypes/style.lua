@@ -19,9 +19,9 @@ data.raw["gui-style"]["default"]["recursive-blueprints-slot-selected"] = {
   clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["slot_button"].selected_graphical_set),
 }
 
-data.raw["gui-style"]["default"]["recursive-blueprints-filter-selected"] = {
+data.raw["gui-style"]["default"]["recursive-blueprints-signal-selected"] = {
   type = "button_style",
-  parent = "recursive-blueprints-filter",
+  parent = "slot_button",
   default_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["slot_button"].selected_graphical_set),
   clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["slot_button"].selected_graphical_set),
 }
@@ -38,11 +38,6 @@ data.raw["gui-style"]["default"]["recursive-blueprints-set-button"] = {
   type = "button_style",
   parent = "green_button",
   tooltip = "",
-}
-
-data.raw["gui-style"]["default"]["recursive-blueprints-filter"] = {
-  type = "button_style",
-  parent = "slot_button",
 }
 
 data.raw["gui-style"]["default"]["recursive-blueprints-scroll"] = {
