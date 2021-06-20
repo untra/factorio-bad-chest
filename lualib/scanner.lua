@@ -10,6 +10,43 @@ local STATUS_SPRITE = {
   [defines.entity_status.marked_for_deconstruction] = "utility/status_not_working",
 }
 
+function on_tick_scanner(network)
+  if not network.deployer.valid then return end
+  local scanner = global.scanners[network.deployer.unit_number]
+  if not scanner then return end
+  -- Copy values from circuit network to scanner
+  local changed = signal_changed(scanner, network, "x", "x_signal")
+  changed = signal_changed(scanner, network, "y", "y_signal") or changed
+  changed = signal_changed(scanner, network, "width", "width_signal") or changed
+  changed = signal_changed(scanner, network, "height", "height_signal") or changed
+  if changed then
+    -- Scan the new area
+    scan_resources(scanner)
+    -- Update any open scanner guis
+    for _, player in pairs(game.players) do
+      if player.opened
+      and player.opened.object_name == "LuaGuiElement"
+      and player.opened.name == "recursive-blueprints-scanner"
+      and player.opened.tags["recursive-blueprints-id"] == scanner.entity.unit_number then
+        update_scanner_gui(player.opened)
+      end
+    end
+  end
+end
+
+-- Copy the signal value from the circuit network
+-- Return true if changed, false if not changed
+function signal_changed(scanner, network, name, signal_name)
+  if scanner[signal_name] then
+    local value = get_signal(network, scanner[signal_name])
+    if scanner[name] ~= value then
+      scanner[name] = value
+      return true
+    end
+  end
+  return false
+end
+
 function on_built_scanner(entity, event)
   local scanner = {
     x = 0,
@@ -36,7 +73,17 @@ function on_built_scanner(entity, event)
   scanner.entity = entity
   global.scanners[entity.unit_number] = scanner
   script.register_on_entity_destroyed(entity)
+  update_scanner_network(scanner)
   scan_resources(scanner)
+end
+
+-- Cache the circuit networks attached to this scanner
+function update_scanner_network(scanner)
+  if scanner.x_signal or scanner.y_signal or scanner.width_signal or scanner.height_signal then
+    update_network(scanner.entity)
+  else
+    global.networks[scanner.entity.unit_number] = nil
+  end
 end
 
 function destroy_gui(gui)
@@ -502,6 +549,7 @@ function set_scanner_value(element)
 
   -- Disable signal
   scanner[key.."_signal"] = nil
+  update_scanner_network(scanner)
 
   -- Run a scan if the area has changed
   if scanner[key] ~= value then
@@ -528,6 +576,7 @@ function set_scanner_signal(element)
   local key = signal_gui.tags["recursive-blueprints-field"]
 
   scanner[key.."_signal"] = element.tags["recursive-blueprints-signal"]
+  update_scanner_network(scanner)
   update_scanner_gui(scanner_gui)
   reset_scanner_gui_style(screen)
 

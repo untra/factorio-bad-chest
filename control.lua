@@ -187,6 +187,7 @@ function on_built(event)
 
   -- Turn on resource scanner
   if entity.name == "recursive-blueprints-scanner" then
+    global.deployers[entity.unit_number] = entity
     on_built_scanner(entity, event)
     return
   end
@@ -207,6 +208,8 @@ function on_entity_destroyed(event)
   local scanner = global.scanners[event.unit_number]
   if scanner then
     global.scanners[event.unit_number] = nil
+    global.deployers[event.unit_number] = nil
+    global.networks[event.unit_number] = nil
     for _, player in pairs(game.players) do
       if player.opened
       and player.opened.object_name == "LuaGuiElement"
@@ -335,7 +338,7 @@ function on_gui_confirmed(event)
   if not name then return end
   if name == "recursive-blueprints-constant" then
     -- Copy constant value back to scanner gui
-    set_scanner_value(event.player_index, event.element)
+    set_scanner_value(event.element)
   end
 end
 
@@ -347,6 +350,13 @@ function on_tick_network(network)
   if network.green and not network.green.valid then
     network.green = nil
   end
+
+  -- Resource scanner
+  if network.deployer.name == "recursive-blueprints-scanner" then
+    on_tick_scanner(network)
+    return
+  end
+
   if not network.red and not network.green then
     return
   end
@@ -446,6 +456,13 @@ end
 -- Cache the circuit networks attached to the deployer
 -- The deployer must be valid
 function update_network(deployer)
+  if deployer.name == "recursive-blueprints-scanner" then
+    -- Resource scanner only uses circuit networks if one of the signals is set
+    local scanner = global.scanners[deployer.unit_number]
+    if not (scanner.x_signal or scanner.y_signal or scanner.width_signal or scanner.height_signal) then
+      return
+    end
+  end
   local network = global.networks[deployer.unit_number]
   if not network then
     network = {deployer = deployer}
