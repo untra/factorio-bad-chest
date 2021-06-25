@@ -76,7 +76,7 @@ function on_mods_changed(event)
   global.groups = {}
   for _, group in pairs(game.item_group_prototypes) do
     for _, subgroup in pairs(group.subgroups) do
-      if subgroup.name == "other" or subgroup.name == "virtual-signal-special" then
+      if subgroup.name == "other2" or subgroup.name == "virtual-signal-special" then
         -- Hide special signals
       else
         local signals = {}

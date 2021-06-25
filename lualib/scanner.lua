@@ -304,9 +304,11 @@ function create_scanner_gui(player, entity)
   scroll_pane.style.maximal_height = 164
   local scroll_frame = scroll_pane.add{
     type = "frame",
-    style = "recursive-blueprints-scroll-frame",
+    style = "filter_scroll_pane_background_frame",
     direction = "vertical",
   }
+  scroll_frame.style.width = 400
+  scroll_frame.style.minimal_height = 40
   local slots = scanner.entity.prototype.item_slot_count
   for i = 1, slots, 10 do
     local row = scroll_frame.add{
@@ -371,19 +373,14 @@ function create_signal_gui(element)
   }
 
   -- Create tab bar, but don't add tabs until we know which one is selected
-  local scroll_pane = inner_frame.add{
+  local tab_scroll_pane = inner_frame.add{
     type = "scroll-pane",
     style = "naked_scroll_pane",
     direction = "vertical",
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
-  scroll_pane.style.maximal_height = 132
-  local tab_bar = scroll_pane.add{
-    type = "frame",
-    style = "recursive-blueprints-scroll-frame2",
-    direction = "vertical",
-  }
+  tab_scroll_pane.style.width = 424
 
   -- Open the signals tab if nothing is selected
   local selected_tab = 1
@@ -416,11 +413,14 @@ function create_signal_gui(element)
       vertical_scroll_policy = "auto",
     }
     scroll_pane.style.height = 364
+    scroll_pane.style.maximal_width = 424
     local scroll_frame = scroll_pane.add{
       type = "frame",
-      style = "recursive-blueprints-scroll-frame",
+      style = "filter_scroll_pane_background_frame",
       direction = "vertical",
     }
+    scroll_frame.style.width = 400
+    scroll_frame.style.minimal_height = 40
     -- Add signals
     for i = 1, #group.subgroups do
       for j = 1, #group.subgroups[i], 10 do
@@ -460,39 +460,26 @@ function create_signal_gui(element)
     tabbed_pane.selected_tab_index = selected_tab
   end
 
-  -- Fake tab buttons with images
-  for i = 1, #global.groups, 6 do
-    local row = tab_bar.add{
-      type = "flow",
-      style = "packed_horizontal_flow",
-    }
-    for j = 0, 5 do
-      if i+j <= #global.groups then
-        local name = global.groups[i+j].name
-        local button = row.add{
-          type = "sprite-button",
-          style = "recursive-blueprints-tab-button",
-          name = "recursive-blueprints-tab-button-" .. (i+j),
-          tooltip = {"item-group-name." .. name},
-        }
-        if game.is_valid_sprite_path("item-group/" .. name) then
-          button.sprite = "item-group/" .. name
-        else
-          button.caption = {"item-group-name." .. name}
-        end
-        -- Highlight selected tab
-        if i+j == selected_tab then
-          if j == 0 then
-            button.style = "recursive-blueprints-tab-button-left"
-          elseif j == 5 then
-            button.style = "recursive-blueprints-tab-button-right"
-          else
-            button.style = "recursive-blueprints-tab-button-selected"
-          end
-          button.parent.parent.parent.scroll_to_element(button)
-        end
-      end
-    end
+  -- Add fake tab buttons with images
+  local tab_bar = tab_scroll_pane.add{
+    type = "table",
+    style = "recursive-blueprints-tab-bar",
+    column_count = 6,
+  }
+  tab_bar.style.width = 420
+  for i = 1, #global.groups do
+    add_tab_button(tab_bar, i, selected_tab)
+  end
+  if #global.groups <= 1 then
+    -- No tab bar
+    tab_scroll_pane.style.maximal_height = 0
+  elseif #global.groups <= 6 then
+    -- Single row tab bar
+    tab_scroll_pane.style.maximal_height = 64
+  else
+    -- Multi row tab bar
+    tab_scroll_pane.style.maximal_height = 144
+    tabbed_pane.style = "recursive-blueprints-tabbed-pane-multiple"
   end
 
   -- Set a constant
@@ -525,6 +512,33 @@ function create_signal_gui(element)
   }
 
   return gui
+end
+
+function add_tab_button(row, i, selected)
+  -- Add tab button
+  local name = global.groups[i].name
+  local button = row.add{
+    type = "sprite-button",
+    style = "recursive-blueprints-tab-button",
+    name = "recursive-blueprints-tab-button-" .. i,
+    tooltip = {"item-group-name." .. name},
+  }
+  if #global.groups > 6 then
+    button.style = "filter_group_button_tab"
+  end
+  if game.is_valid_sprite_path("item-group/" .. name) then
+    button.sprite = "item-group/" .. name
+  else
+    button.caption = {"item-group-name." .. name}
+  end
+
+  -- Highlight selected tab
+  if i == selected then
+    highlight_tab_button(button, i)
+    if i > 6 then
+      button.parent.parent.scroll_to_element(button, "top-third")
+    end
+  end
 end
 
 -- Copy constant value from signal gui to scanner gui
@@ -586,24 +600,31 @@ end
 
 -- Switch tabs
 function set_signal_gui_tab(element, index)
-  local tab_bar = element.parent.parent
+  local tab_bar = element.parent
   -- Un-highlight old tab button
   for i = 1, #tab_bar.children do
-    for j = 1, #tab_bar.children[i].children do
-      tab_bar.children[i].children[j].style = "recursive-blueprints-tab-button"
+    if #global.groups > 6 then
+      tab_bar.children[i].style = "filter_group_button_tab"
+    else
+      tab_bar.children[i].style = "recursive-blueprints-tab-button"
     end
   end
-  -- Highlight new tab button
-  local column = index % 6
-  if column == 1 then
-    element.style = "recursive-blueprints-tab-button-left"
-  elseif column == 0 then
-    element.style = "recursive-blueprints-tab-button-right"
-  else
-    element.style = "recursive-blueprints-tab-button-selected"
-  end
+  highlight_tab_button(element, index)
   -- Show new tab content
-  tab_bar.parent.parent.children[2].selected_tab_index = index
+  tab_bar.gui.screen["recursive-blueprints-signal"].children[2].children[2].selected_tab_index = index
+end
+
+function highlight_tab_button(button, index)
+  local column = index % 6
+  if #global.groups > 6 then
+    button.style = "recursive-blueprints-tab-button-selected-grid"
+  elseif column == 1 then
+    button.style = "recursive-blueprints-tab-button-left"
+  elseif column == 0 then
+    button.style = "recursive-blueprints-tab-button-right"
+  else
+    button.style = "recursive-blueprints-tab-button-selected"
+  end
 end
 
 -- Populate gui with the latest data
