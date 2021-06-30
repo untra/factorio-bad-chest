@@ -1,5 +1,5 @@
 require "util"
-require "lualub.common"
+require "lualib.common"
 require "lualib.deployer"
 require "lualib.scanner"
 
@@ -243,7 +243,7 @@ function on_gui_click(event)
 
   if name == "recursive-blueprints-close" then
     -- Remove gui
-    destroy_gui(event.element.parent.parent)
+    destroy_gui(event.element)
   elseif name:sub(1, 29) == "recursive-blueprints-scanner-" then
     -- Open the signal gui to pick a value
     create_signal_gui(event.element)

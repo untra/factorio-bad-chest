@@ -103,7 +103,8 @@ function signal_changed(scanner, network, name, signal_name)
   return false
 end
 
-function destroy_gui(gui)
+function destroy_gui(element)
+  local gui = get_root_element(element)
   -- Destroy dependent gui
   local screen = gui.gui.screen
   if gui.name == "recursive-blueprints-scanner" and screen["recursive-blueprints-signal"] then
@@ -112,6 +113,13 @@ function destroy_gui(gui)
   -- Destroy gui
   gui.destroy()
   reset_scanner_gui_style(screen)
+end
+
+function get_root_element(element)
+  while element.parent.name ~= "screen" do
+    element = element.parent
+  end
+  return element
 end
 
 -- Turn off highlighted scanner button
@@ -125,9 +133,9 @@ function reset_scanner_gui_style(screen)
 end
 
 -- Add a titlebar with a drag area and close [X] button
-function add_titlebar(gui, caption, close_button_name, close_button_tooltip)
+function add_titlebar(gui, drag_target, caption, close_button_name, close_button_tooltip)
   local titlebar = gui.add{type = "flow"}
-  titlebar.drag_target = gui
+  titlebar.drag_target = drag_target
   titlebar.add{
     type = "label",
     style = "frame_title",
@@ -171,7 +179,7 @@ function create_scanner_gui(player, entity)
     tags = {["recursive-blueprints-id"] = entity.unit_number}
   }
   gui.auto_center = true
-  add_titlebar(gui, entity.localised_name, "recursive-blueprints-close", {"gui.close-instruction"})
+  add_titlebar(gui, gui, entity.localised_name, "recursive-blueprints-close", {"gui.close-instruction"})
   local inner_frame = gui.add{
     type = "frame",
     style = "entity_frame",
@@ -375,6 +383,7 @@ function create_signal_gui(element)
   local gui = screen.add{
     type = "frame",
     name = "recursive-blueprints-signal",
+    style = "invisible_frame",
     direction = "vertical",
     tags = {
       ["recursive-blueprints-id"] = id,
@@ -382,8 +391,12 @@ function create_signal_gui(element)
     }
   }
   gui.location = location
-  add_titlebar(gui, {"gui.select-signal"}, "recursive-blueprints-close")
-  local inner_frame = gui.add{
+  local signal_select = gui.add{
+    type = "frame",
+    direction = "vertical",
+  }
+  add_titlebar(signal_select, gui, {"gui.select-signal"}, "recursive-blueprints-close")
+  local inner_frame = signal_select.add{
     type = "frame",
     style = "inside_shallow_frame",
     direction = "vertical",
@@ -500,8 +513,12 @@ function create_signal_gui(element)
   end
 
   -- Set a constant
-  add_titlebar(gui, {"gui.or-set-a-constant"})
-  local inner_frame = gui.add{
+  local set_constant = gui.add{
+    type = "frame",
+    direction = "vertical",
+  }
+  add_titlebar(set_constant, gui, {"gui.or-set-a-constant"})
+  local inner_frame = set_constant.add{
     type = "frame",
     style = "entity_frame",
     direction = "horizontal",
@@ -561,10 +578,10 @@ end
 -- Copy constant value from signal gui to scanner gui
 function set_scanner_value(element)
   local screen = element.gui.screen
-  local gui = screen["recursive-blueprints-scanner"]
-  if not gui then return end
-  local scanner = global.scanners[gui.tags["recursive-blueprints-id"]]
-  local signal_gui = element.parent.parent
+  local scanner_gui = screen["recursive-blueprints-scanner"]
+  if not scanner_gui then return end
+  local scanner = global.scanners[scanner_gui.tags["recursive-blueprints-id"]]
+  local signal_gui = screen["recursive-blueprints-signal"]
   local key = signal_gui.tags["recursive-blueprints-field"]
   local value = tonumber(element.parent.children[1].text) or 0
 
@@ -590,7 +607,7 @@ function set_scanner_value(element)
 
   -- The user might have changed a signal without changing the area,
   -- so always refresh the gui.
-  update_scanner_gui(gui)
+  update_scanner_gui(scanner_gui)
   reset_scanner_gui_style(screen)
 
   -- Close signal gui
@@ -599,8 +616,8 @@ end
 
 -- Copy signal from signal gui to scanner gui
 function set_scanner_signal(element)
-  local signal_gui = element.parent.parent.parent.parent.parent.parent
   local screen = element.gui.screen
+  local signal_gui = screen["recursive-blueprints-signal"]
   local scanner_gui = screen["recursive-blueprints-scanner"]
   if not scanner_gui then return end
   local scanner = global.scanners[scanner_gui.tags["recursive-blueprints-id"]]
@@ -628,7 +645,7 @@ function set_signal_gui_tab(element, index)
   end
   highlight_tab_button(element, index)
   -- Show new tab content
-  tab_bar.gui.screen["recursive-blueprints-signal"].children[2].children[2].selected_tab_index = index
+  tab_bar.gui.screen["recursive-blueprints-signal"].children[1].children[2].children[2].selected_tab_index = index
 end
 
 function highlight_tab_button(button, index)
