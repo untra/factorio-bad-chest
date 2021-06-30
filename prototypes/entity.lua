@@ -57,14 +57,81 @@ deployer.picture.layers = {
 }
 data:extend{deployer}
 
-local scanner = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
-scanner.name = "recursive-blueprints-scanner"
-scanner.minable.result = "recursive-blueprints-scanner"
-scanner.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
-scanner.collision_box = {{-0.7, -0.7}, {0.7, 0.7}}
-scanner.selection_box = {{-1, -1}, {1, 1}}
-scanner.max_health = 150
-scanner.allow_copy_paste = false
-table.insert(scanner.flags, "hide-alt-info")
-table.insert(scanner.flags, "not-rotatable")
-data:extend{scanner}
+local substation = table.deepcopy(data.raw["electric-pole"]["substation"])
+local connection_point = {
+  wire = {green = {0.9375, 0.875}, red = {0.875, 0.640625}},
+  shadow = {green = {1.078125, 1.171875}, red = {1.296875, 1.125}},
+}
+data:extend{
+  {
+    type = "constant-combinator",
+    name = "recursive-blueprints-scanner",
+    allow_copy_paste = false,
+    activity_led_light_offsets = {{0,0}, {0,0}, {0,0}, {0,0}},
+    activity_led_sprites = {filename = "__core__/graphics/empty.png", size = 1},
+    circuit_wire_connection_points = {
+      connection_point,
+      connection_point,
+      connection_point,
+      connection_point,
+    },
+    circuit_wire_max_distance = 9,
+    close_sound = substation.close_sound,
+    collision_box = {{-0.7, -0.7}, {0.7, 0.7}},
+    corpse = "substation-remnants",
+    damaged_trigger_effect = substation.damaged_trigger_effect,
+    drawing_box = {{-1, -2.5}, {1, 1}},
+    dying_explosion = "substation-explosion",
+    flags = {
+      "placeable-neutral",
+      "player-creation",
+      "hide-alt-info",
+      "not-rotatable",
+    },
+    icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png",
+    icon_mipmaps = 4,
+    icon_size = 64,
+    item_slot_count = 10,
+    max_health = 200,
+    minable = {mining_time = 0.1, result = "recursive-blueprints-scanner"},
+    open_sound = substation.open_sound,
+    selection_box = {{-1, -1}, {1, 1}},
+    sprites = {
+      layers = {
+        {
+          filename = "__recursive-blueprints__/graphics/scanner.png",
+          width = 70,
+          height = 136,
+          hr_version = {
+            filename = "__recursive-blueprints__/graphics/hr-scanner.png",
+            width = 138,
+            height = 270,
+            priority = "high",
+            scale = 0.5,
+            shift = {0, -0.96875},
+          },
+          priority = "high",
+          shift = {0, -0.96875},
+        },
+        {
+          draw_as_shadow = true,
+          filename = "__base__/graphics/entity/substation/substation-shadow.png",
+          width = 186,
+          height = 52,
+          hr_version = {
+            draw_as_shadow = true,
+            filename = "__base__/graphics/entity/substation/hr-substation-shadow.png",
+            width = 370,
+            height = 104,
+            priority = "high",
+            scale = 0.5,
+            shift = {1.9375, 0.3125},
+          },
+          priority = "high",
+          shift = {1.9375, 0.3125},
+        }
+      }
+    },
+    vehicle_impact_sound = substation.vehicle_impact_sound,
+  }
+}
