@@ -34,19 +34,6 @@ function on_tick_scanner(network)
   end
 end
 
--- Copy the signal value from the circuit network
--- Return true if changed, false if not changed
-function signal_changed(scanner, network, name, signal_name)
-  if scanner[signal_name] then
-    local value = get_signal(network, scanner[signal_name])
-    if scanner[name] ~= value then
-      scanner[name] = value
-      return true
-    end
-  end
-  return false
-end
-
 function on_built_scanner(entity, event)
   local scanner = {
     x = 0,
@@ -77,6 +64,23 @@ function on_built_scanner(entity, event)
   scan_resources(scanner)
 end
 
+function on_destroyed_scanner(unit_number)
+  local scanner = global.scanners[unit_number]
+  if scanner then
+    global.scanners[unit_number] = nil
+    global.deployers[unit_number] = nil
+    global.networks[unit_number] = nil
+    for _, player in pairs(game.players) do
+      if player.opened
+      and player.opened.object_name == "LuaGuiElement"
+      and player.opened.name == "recursive-blueprints-scanner"
+      and player.opened.tags["recursive-blueprints-id"] == unit_number then
+        destroy_gui(player.opened)
+      end
+    end
+  end
+end
+
 -- Cache the circuit networks attached to this scanner
 function update_scanner_network(scanner)
   if scanner.x_signal or scanner.y_signal or scanner.width_signal or scanner.height_signal then
@@ -84,6 +88,19 @@ function update_scanner_network(scanner)
   else
     global.networks[scanner.entity.unit_number] = nil
   end
+end
+
+-- Copy the signal value from the circuit network
+-- Return true if changed, false if not changed
+function signal_changed(scanner, network, name, signal_name)
+  if scanner[signal_name] then
+    local value = get_signal(network, scanner[signal_name])
+    if scanner[name] ~= value then
+      scanner[name] = value
+      return true
+    end
+  end
+  return false
 end
 
 function destroy_gui(gui)
@@ -879,5 +896,53 @@ function format_amount(amount)
     return math.ceil(amount / 1000000) .. "M"
   else
     return math.ceil(amount / 1000000000) .. "G"
+  end
+end
+
+-- Collect all visible circuit network signals.
+-- Sort them by group and subgroup.
+function cache_scanner_signals()
+  global.groups = {}
+  for _, group in pairs(game.item_group_prototypes) do
+    for _, subgroup in pairs(group.subgroups) do
+      if subgroup.name == "other2" or subgroup.name == "virtual-signal-special" then
+        -- Hide special signals
+      else
+        local signals = {}
+        -- Item signals
+        local items = game.get_filtered_item_prototypes{
+          {filter = "subgroup", subgroup = subgroup.name},
+          {filter = "flag", flag = "hidden", invert = true, mode = "and"},
+        }
+        for _, item in pairs(items) do
+          if item.subgroup == subgroup then
+            table.insert(signals, {type = "item", name = item.name})
+          end
+        end
+        -- Fluid signals
+        local fluids = game.get_filtered_fluid_prototypes{
+          {filter = "subgroup", subgroup = subgroup.name},
+          {filter = "hidden", invert = true, mode = "and"},
+        }
+        for _, fluid in pairs(fluids) do
+          if fluid.subgroup == subgroup then
+            table.insert(signals, {type = "fluid", name = fluid.name})
+          end
+        end
+        -- Virtual signals
+        for _, signal in pairs(game.virtual_signal_prototypes) do
+          if signal.subgroup == subgroup then
+            table.insert(signals, {type = "virtual", name = signal.name})
+          end
+        end
+        -- Cache the visible signals
+        if #signals > 0 then
+          if #global.groups == 0 or global.groups[#global.groups].name ~= group.name then
+            table.insert(global.groups, {name = group.name, subgroups = {}})
+          end
+          table.insert(global.groups[#global.groups].subgroups, signals)
+        end
+      end
+    end
   end
 end
