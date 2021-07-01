@@ -94,8 +94,8 @@ end
 function signal_changed(scanner, network, name, signal_name)
   if scanner[signal_name] then
     local value = get_signal(network, scanner[signal_name])
+    value = sanitize_area(name, value)
     if scanner[name] ~= value then
-      value = sanitize_area(name, value)
       scanner[name] = value
       return true
     end
