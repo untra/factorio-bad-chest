@@ -23,6 +23,7 @@ end
 
 function on_tick_network(network)
   -- Validate network
+  if not network.deployer.valid then return end
   if network.red and not network.red.valid then
     network.red = nil
   end

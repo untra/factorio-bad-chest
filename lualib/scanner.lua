@@ -11,7 +11,6 @@ local STATUS_SPRITE = {
 }
 
 function on_tick_scanner(network)
-  if not network.deployer.valid then return end
   local scanner = global.scanners[network.deployer.unit_number]
   if not scanner then return end
   -- Copy values from circuit network to scanner
