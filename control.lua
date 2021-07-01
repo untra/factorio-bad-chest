@@ -125,6 +125,13 @@ function on_built(event)
     return
   end
 
+  -- Turn on resource scanner
+  if entity.name == "recursive-blueprints-scanner" then
+    global.deployers[entity.unit_number] = entity
+    on_built_scanner(entity, event)
+    return
+  end
+
   -- If neighbor is a blueprint deployer, update circuit network connections
   local connections = entity.circuit_connection_definitions
   if connections then
@@ -136,12 +143,6 @@ function on_built(event)
     end
   end
 
-  -- Turn on resource scanner
-  if entity.name == "recursive-blueprints-scanner" then
-    global.deployers[entity.unit_number] = entity
-    on_built_scanner(entity, event)
-    return
-  end
 end
 
 function on_entity_destroyed(event)

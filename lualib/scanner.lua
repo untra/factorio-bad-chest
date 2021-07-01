@@ -95,6 +95,7 @@ function signal_changed(scanner, network, name, signal_name)
   if scanner[signal_name] then
     local value = get_signal(network, scanner[signal_name])
     if scanner[name] ~= value then
+      value = sanitize_area(name, value)
       scanner[name] = value
       return true
     end
@@ -598,16 +599,7 @@ function add_tab_button(row, i, selected)
   end
 end
 
--- Copy constant value from signal gui to scanner gui
-function set_scanner_value(element)
-  local screen = element.gui.screen
-  local scanner_gui = screen["recursive-blueprints-scanner"]
-  if not scanner_gui then return end
-  local scanner = global.scanners[scanner_gui.tags["recursive-blueprints-id"]]
-  local signal_gui = screen["recursive-blueprints-signal"]
-  local key = signal_gui.tags["recursive-blueprints-field"]
-  local value = tonumber(element.parent.children[2].text) or 0
-
+function sanitize_area(key, value)
   -- Out of bounds check
   if value > 2000000 then value = 2000000 end
   if value < -2000000 then value = -2000000 end
@@ -617,6 +609,20 @@ function set_scanner_value(element)
     if value < 0 then value = 0 end
     if value > 999 then value = 999 end
   end
+
+  return value
+end
+
+-- Copy constant value from signal gui to scanner gui
+function set_scanner_value(element)
+  local screen = element.gui.screen
+  local scanner_gui = screen["recursive-blueprints-scanner"]
+  if not scanner_gui then return end
+  local scanner = global.scanners[scanner_gui.tags["recursive-blueprints-id"]]
+  local signal_gui = screen["recursive-blueprints-signal"]
+  local key = signal_gui.tags["recursive-blueprints-field"]
+  local value = tonumber(element.parent.children[2].text) or 0
+  value = sanitize_area(key, value)
 
   -- Disable signal
   scanner[key.."_signal"] = nil
