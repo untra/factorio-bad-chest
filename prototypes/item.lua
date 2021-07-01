@@ -13,9 +13,9 @@ data:extend{
   {
     type = "item",
     name = "recursive-blueprints-scanner",
-    icon = "__core__/graphics/icons/category/resource-editor.png",
-    icon_size = 128,
-    icon_mipmaps = 2,
+    icon = "__recursive-blueprints__/graphics/scanner-icon.png",
+    icon_size = 64,
+    icon_mipmaps = 4,
     subgroup = "circuit-network",
     order = "d[other]-c[recursive-blueprints-scanner]",
     place_result = "recursive-blueprints-scanner",

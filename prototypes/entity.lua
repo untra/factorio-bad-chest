@@ -67,7 +67,7 @@ data:extend{
       "hide-alt-info",
       "not-rotatable",
     },
-    icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png",
+    icon = "__recursive-blueprints__/graphics/scanner-icon.png",
     icon_mipmaps = 4,
     icon_size = 64,
     item_slot_count = 10,
