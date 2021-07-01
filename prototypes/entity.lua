@@ -80,7 +80,7 @@ data:extend{
         {
           filename = "__recursive-blueprints__/graphics/scanner.png",
           width = 70,
-          height = 136,
+          height = 135,
           shift = util.by_pixel(0, -31),
           priority = "high",
           hr_version = {
