@@ -1,3 +1,4 @@
+-- Blueprint deployer
 local deployer = table.deepcopy(data.raw["container"]["steel-chest"])
 deployer.name = "blueprint-deployer"
 deployer.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
@@ -40,6 +41,7 @@ deployer.picture.layers = {
 }
 data:extend{deployer}
 
+-- Resource scanner
 local accumulator = table.deepcopy(data.raw["accumulator"]["accumulator"])
 local substation = table.deepcopy(data.raw["electric-pole"]["substation"])
 local con_point = {
@@ -79,7 +81,7 @@ data:extend{
       layers = {
         {
           filename = "__recursive-blueprints__/graphics/scanner.png",
-          width = 70,
+          width = 69,
           height = 135,
           shift = util.by_pixel(0, -31),
           priority = "high",
