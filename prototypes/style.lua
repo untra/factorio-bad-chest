@@ -1,3 +1,4 @@
+-- Scanner area input slot
 data.raw["gui-style"]["default"]["recursive-blueprints-slot"] = {
   type = "button_style",
   parent = "slot_button_in_shallow_frame",
@@ -12,6 +13,7 @@ data.raw["gui-style"]["default"]["recursive-blueprints-slot"] = {
   draw_shadow_under_picture = false,
 }
 
+-- Scanner area input slot (selected)
 data.raw["gui-style"]["default"]["recursive-blueprints-slot-selected"] = {
   type = "button_style",
   parent = "recursive-blueprints-slot",
@@ -19,6 +21,7 @@ data.raw["gui-style"]["default"]["recursive-blueprints-slot-selected"] = {
   clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["slot_button"].selected_graphical_set),
 }
 
+-- Input signal (selected)
 data.raw["gui-style"]["default"]["recursive-blueprints-signal-selected"] = {
   type = "button_style",
   parent = "slot_button",
@@ -26,6 +29,7 @@ data.raw["gui-style"]["default"]["recursive-blueprints-signal-selected"] = {
   clicked_graphical_set = table.deepcopy(data.raw["gui-style"]["default"]["slot_button"].selected_graphical_set),
 }
 
+-- Output signal (hovered)
 data.raw["gui-style"]["default"]["recursive-blueprints-output"] = {
   type = "button_style",
   parent = "slot_button",
@@ -34,6 +38,7 @@ data.raw["gui-style"]["default"]["recursive-blueprints-output"] = {
   draw_shadow_under_picture = false,
 }
 
+-- Green set button without tooltip
 data.raw["gui-style"]["default"]["recursive-blueprints-set-button"] = {
   type = "button_style",
   parent = "green_button",
@@ -43,11 +48,14 @@ data.raw["gui-style"]["default"]["recursive-blueprints-set-button"] = {
 -- Scroll pane
 data.raw["gui-style"]["default"]["recursive-blueprints-scroll"] = {
   type = "scroll_pane_style",
-  parent = "scroll_pane_with_dark_background_under_subheader",
   padding = 2,
   minimal_height = 44,
+  extra_padding_when_activated = 0,
   horizontally_stretchable = "off",
-  --graphical_set = {base = {position = {273, 9}, size = 1}},
+  background_graphical_set = {
+    corner_size = 1,
+    position = {41, 7},
+  },
 }
 
 -- Tabbed pane
@@ -78,14 +86,6 @@ data.raw["gui-style"]["default"]["recursive-blueprints-invisible-tab"] = {
   width = 0,
   padding = 0,
   font = "recursive-blueprints-invisible-font",
-}
-
--- Fake tab bar
-data.raw["gui-style"]["default"]["recursive-blueprints-tab-bar"] = {
-  type = "table_style",
-  parent = "filter_group_table",
-  --default_row_graphical_set = {},
-  --background_graphical_set = {},
 }
 
 -- Fake tab button

@@ -404,11 +404,12 @@ function create_signal_gui(element)
   -- Create tab bar, but don't add tabs until we know which one is selected
   local tab_scroll_pane = inner_frame.add{
     type = "scroll-pane",
-    style = "naked_scroll_pane",
+    style = "recursive-blueprints-scroll",
     direction = "vertical",
     horizontal_scroll_policy = "never",
     vertical_scroll_policy = "auto",
   }
+  tab_scroll_pane.style.padding = 0
   tab_scroll_pane.style.width = 424
 
   -- Open the signals tab if nothing is selected
@@ -492,7 +493,7 @@ function create_signal_gui(element)
   -- Add fake tab buttons with images
   local tab_bar = tab_scroll_pane.add{
     type = "table",
-    style = "recursive-blueprints-tab-bar",
+    style = "filter_group_table",
     column_count = 6,
   }
   tab_bar.style.width = 420
@@ -523,20 +524,43 @@ function create_signal_gui(element)
     direction = "horizontal",
   }
   inner_frame.style.vertical_align = center
+
+  -- Slider settings
+  local maximum_value = 28  -- 10 * log(999)
+  local allow_negative = false
+  if (field == "x" or field == "y") then
+    maximum_value = 74  -- 2 * 10 * log(10000)
+    allow_negative = true
+  end
+
+  -- Slider
+  local slider = inner_frame.add{
+    type = "slider",
+    name = "recursive-blueprints-slider",
+    maximum_value = maximum_value,
+  }
+  slider.style.top_margin = 8
+  slider.style.bottom_margin = 8
+
+  -- Text field
   local textfield = inner_frame.add{
     type = "textfield",
     name = "recursive-blueprints-constant",
     numeric = true,
-    allow_negative = (field == "x" or field == "y"),
+    allow_negative = allow_negative,
   }
-  textfield.style.width = 83
-  textfield.style.right_margin = 30
+  textfield.style.width = 80
   textfield.style.horizontal_align = "center"
   if scanner[field.."_signal"] then
     textfield.text = "0"
   else
     textfield.text = tostring(scanner[field])
+    copy_text_value(textfield)
   end
+
+  -- Submit button
+  local filler = inner_frame.add{type = "empty-widget"}
+  filler.style.horizontally_stretchable = "on"
   inner_frame.add{
     type = "button",
     style = "recursive-blueprints-set-button",
@@ -582,7 +606,7 @@ function set_scanner_value(element)
   local scanner = global.scanners[scanner_gui.tags["recursive-blueprints-id"]]
   local signal_gui = screen["recursive-blueprints-signal"]
   local key = signal_gui.tags["recursive-blueprints-field"]
-  local value = tonumber(element.parent.children[1].text) or 0
+  local value = tonumber(element.parent.children[2].text) or 0
 
   -- Out of bounds check
   if value > 2000000 then value = 2000000 end
@@ -629,6 +653,79 @@ function set_scanner_signal(element)
 
   -- Close signal gui
   signal_gui.destroy()
+end
+
+-- Copy value from slider to text field
+function copy_slider_value(element)
+  local gui = get_root_element(element)
+  local field = gui.tags["recursive-blueprints-field"]
+  local value = 0
+  if field == 'x' or field == 'y' then
+    -- 1-9(+1) 10-90(+10) 100-900(+100) 1000-10000(+1000)
+    if element.slider_value < 10 then
+      value = 1000 * (element.slider_value - 10)
+    elseif element.slider_value < 19 then
+      value = 100 * (element.slider_value - 19)
+    elseif element.slider_value < 28 then
+      value = 10 * (element.slider_value - 28)
+    elseif element.slider_value < 47 then
+      value = element.slider_value - 37
+    elseif element.slider_value < 56 then
+      value = 10 * (element.slider_value - 46)
+    elseif element.slider_value < 65 then
+      value = 100 * (element.slider_value - 55)
+    else
+      value = 1000 * (element.slider_value - 64)
+    end
+  else
+    -- 1-10(+1) 20-100(+10) 200-999(+100)
+    if element.slider_value < 11 then
+      value = element.slider_value
+    elseif element.slider_value < 20 then
+      value = 10 * (element.slider_value - 9)
+    elseif element.slider_value < 28 then
+      value = 100 * (element.slider_value - 18)
+    else
+      value = 999
+    end
+  end
+  element.parent["recursive-blueprints-constant"].text = tostring(value)
+end
+
+-- Copy value from text field to slider
+function copy_text_value(element)
+  local gui = get_root_element(element)
+  local field = gui.tags["recursive-blueprints-field"]
+  local text_value = tonumber(element.text) or 0
+  local value = 0
+  if field == 'x' or field == 'y' then
+    if text_value <= -1000 then
+      value = math.floor(text_value / 1000 + 10.5)
+    elseif text_value <= -100 then
+      value = math.floor(text_value / 100 + 19.5)
+    elseif text_value <= -10 then
+      value = math.floor(text_value / 10 + 28.5)
+    elseif text_value <= 10 then
+      value = math.floor(text_value + 37.5)
+    elseif text_value <= 100 then
+      value = math.floor(text_value / 10 + 46.5)
+    elseif text_value <= 1000 then
+      value = math.floor(text_value / 100 + 55.5)
+    else
+      value = math.floor(text_value / 1000 + 64.5)
+    end
+  else
+    if text_value <= 10 then
+      value = text_value
+    elseif text_value <= 100 then
+      value = math.floor(text_value / 10 + 9.5)
+    elseif text_value < 999 then
+      value = math.floor(text_value / 100 + 18.5)
+    else
+      value = 28
+    end
+  end
+  element.parent["recursive-blueprints-slider"].slider_value = value
 end
 
 -- Switch tabs
@@ -921,7 +1018,7 @@ function cache_scanner_signals()
   global.groups = {}
   for _, group in pairs(game.item_group_prototypes) do
     for _, subgroup in pairs(group.subgroups) do
-      if subgroup.name == "other2" or subgroup.name == "virtual-signal-special" then
+      if subgroup.name == "other" or subgroup.name == "virtual-signal-special" then
         -- Hide special signals
       else
         local signals = {}

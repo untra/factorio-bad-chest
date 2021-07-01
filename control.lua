@@ -281,6 +281,26 @@ function on_gui_confirmed(event)
   end
 end
 
+function on_gui_text_changed(event)
+  if not event.element.valid then return end
+  local name = event.element.name
+  if not name then return end
+  if name == "recursive-blueprints-constant" then
+    -- Update slider
+    copy_text_value(event.element)
+  end
+end
+
+function on_gui_value_changed(event)
+  if not event.element.valid then return end
+  local name = event.element.name
+  if not name then return end
+  if name == "recursive-blueprints-slider" then
+    -- Update number field
+    copy_slider_value(event.element)
+  end
+end
+
 -- Global events
 script.on_init(on_init)
 script.on_configuration_changed(on_mods_changed)
@@ -289,6 +309,8 @@ script.on_event(defines.events.on_gui_opened, on_gui_opened)
 script.on_event(defines.events.on_gui_closed, on_gui_closed)
 script.on_event(defines.events.on_gui_click, on_gui_click)
 script.on_event(defines.events.on_gui_confirmed, on_gui_confirmed)
+script.on_event(defines.events.on_gui_text_changed, on_gui_text_changed)
+script.on_event(defines.events.on_gui_value_changed, on_gui_value_changed)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
