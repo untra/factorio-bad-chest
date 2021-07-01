@@ -21,23 +21,6 @@ function update_network(deployer)
   end
 end
 
-function on_tick_network(network)
-  -- Validate network
-  if not network.deployer.valid then return end
-  if network.red and not network.red.valid then
-    network.red = nil
-  end
-  if network.green and not network.green.valid then
-    network.green = nil
-  end
-
-  if network.deployer.name == "recursive-blueprints-scanner" then
-    on_tick_scanner(network)
-  else
-    on_tick_deployer(network)
-  end
-end
-
 -- Return integer value for given Signal: {type=, name=}
 -- The red and green networks must be valid or nil
 function get_signal(network, signal)

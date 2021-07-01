@@ -92,7 +92,19 @@ function on_tick()
 
   -- Read all circuit networks
   for _, network in pairs(global.networks) do
-    on_tick_network(network)
+    if network.deployer.valid then
+      if network.red and not network.red.valid then
+        network.red = nil
+      end
+      if network.green and not network.green.valid then
+        network.green = nil
+      end
+      if network.deployer.name == "recursive-blueprints-scanner" then
+        on_tick_scanner(network)
+      else
+        on_tick_deployer(network)
+      end
+    end
   end
 end
 
