@@ -57,3 +57,8 @@ R signal rotates the blueprint. R = 1 = 90° clockwise, R = 2 = 180°, R = 3 = 9
 To change the center of the blueprint, enable grid size (1x1 is recommended), and set an absolute reference point.
 
 Deconstruction and upgrades use X,Y as the center of the area. This can be changed to the top left corner of the area in mod settings.
+
+---
+
+The mod also adds a Resource Scanner that can help detect places to build.
+![Resource Scanner](docs/scanner.png)
