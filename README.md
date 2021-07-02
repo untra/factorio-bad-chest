@@ -61,4 +61,5 @@ Deconstruction and upgrades use X,Y as the center of the area. This can be chang
 ---
 
 The mod also adds a Resource Scanner that can help detect places to build.
+
 ![Resource Scanner](docs/scanner.png)
