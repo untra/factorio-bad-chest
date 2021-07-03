@@ -56,6 +56,7 @@ function on_built_scanner(entity, event)
     scanner.height = tags.height
     scanner.height_signal = tags.height_signal
   end
+  mark_unknown_signals(scanner)
   scanner.entity = entity
   global.scanners[entity.unit_number] = scanner
   script.register_on_entity_destroyed(entity)
