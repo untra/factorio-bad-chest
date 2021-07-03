@@ -971,8 +971,6 @@ function get_signal_sprite(signal)
     return "fluid/" .. signal.name
   elseif signal.type == "virtual" and game.virtual_signal_prototypes[signal.name] then
     return "virtual-signal/" .. signal.name
-  else
-    return "virtual-signal/signal-unknown"
   end
 end
 
