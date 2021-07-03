@@ -10,6 +10,19 @@ local STATUS_SPRITE = {
   [defines.entity_status.marked_for_deconstruction] = "utility/status_not_working",
 }
 
+-- Military structures https://wiki.factorio.com/Military_units_and_structures
+local MILITARY_STRUCTURES = {
+  ["ammo-turret"] = true,
+  ["artillery-turret"] = true,
+  ["electric-turret"] = true,
+  ["fluid-turret"] = true,
+  ["player-port"] = true,
+  ["radar"] = true,
+  ["simple-entity-with-force"] = true,
+  ["turret"] = true,
+  ["unit-spawner"] = true,
+}
+
 function on_tick_scanner(network)
   local scanner = global.scanners[network.deployer.unit_number]
   if not scanner then return end
@@ -901,7 +914,7 @@ function scan_resources(scanner)
         if top < y1 then top = y1 end
         if bottom > y2 then bottom = y2 end
         local area = {{left, top}, {right, bottom}}
-        count_resources(surface, area, resources, blacklist)
+        count_resources(force, surface, area, resources, blacklist)
       end
     end
   end
@@ -928,19 +941,29 @@ function scan_resources(scanner)
 end
 
 -- Count the resources in a chunk
-function count_resources(surface, area, resources, blacklist)
+function count_resources(force, surface, area, resources, blacklist)
+  local forces = {"neutral"}
+  if global.artillery_shell then
+    -- Count enemy bases too
+    for _, enemy in pairs(game.forces) do
+      if force ~= enemy
+      and not force.get_friend(enemy)
+      and not force.get_cease_fire(enemy) then
+        table.insert(forces, enemy.name)
+      end
+    end
+  end
+
+  -- Search the area
   local result = surface.find_entities_filtered{
     area = area,
-    force = "neutral",
+    force = forces,
   }
   for _, resource in pairs(result) do
     local hash = pos_hash(resource, 0, 0)
     local prototype = resource.prototype
     if blacklist[hash] then
       -- We already counted this
-    elseif resource.type == "cliff" and global.cliff_explosives then
-      -- Cliff explosives
-      resources.item["cliff-explosives"] = (resources.item["cliff-explosives"] or 0) - 1
     elseif resource.type == "resource" then
       -- Mining drill resources
       local type = prototype.mineable_properties.products[1].type
@@ -950,6 +973,12 @@ function count_resources(surface, area, resources, blacklist)
         amount = 1
       end
       resources[type][name] = (resources[type][name] or 0) + amount
+    elseif global.cliff_explosives and resource.type == "cliff" then
+      -- Cliff
+      resources.item["cliff-explosives"] = (resources.item["cliff-explosives"] or 0) - 1
+    elseif global.artillery_shell and MILITARY_STRUCTURES[resource.type] then
+      -- Enemy base
+      resources.item["artillery-shell"] = (resources.item["artillery-shell"] or 0) - 1
     elseif (resource.type == "tree" or resource.type == "fish" or prototype.count_as_rock_for_filtered_deconstruction)
     and prototype.mineable_properties.minable
     and prototype.mineable_properties.products then

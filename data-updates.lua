@@ -24,6 +24,11 @@ if data.raw["capsule"]["cliff-explosives"] then
   resources["item"]["cliff-explosives"] = 1
 end
 
+-- Artillery shell
+if data.raw["ammo"]["artillery-shell"] then
+  resources["item"]["artillery-shell"] = 1
+end
+
 -- Resources
 for _, resource in pairs(data.raw["resource"]) do
   add_scanner_resource(resource)
@@ -48,6 +53,3 @@ end
 
 -- Set resource scanner output size
 data.raw["constant-combinator"]["recursive-blueprints-scanner"].item_slot_count = table_size(resources["item"]) + table_size(resources["fluid"])
-
---table.insert(data.raw["construction-robot"]["construction-robot"].flags, "hide-alt-info")
---table.insert(data.raw["logistic-robot"]["logistic-robot"].flags, "hide-alt-info")

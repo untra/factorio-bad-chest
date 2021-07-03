@@ -14,6 +14,7 @@ end
 function on_mods_changed(event)
   global.tag_cache = {}
   global.cliff_explosives = (game.item_prototypes["cliff-explosives"] ~= nil)
+  global.artillery_shell = (game.item_prototypes["artillery-shell"] ~= nil)
 
   -- Migrations
   if event
