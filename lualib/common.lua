@@ -48,6 +48,10 @@ function pos_hash(entity, x_offset, y_offset)
   return entity.name .. "_" .. (entity.position.x + x_offset) .. "_" .. (entity.position.y + y_offset)
 end
 
+function round(n)
+  return math.floor(n + 0.5)
+end
+
 -- Create automatic mode tags for each train
 function create_tags(entities)
   local result = {}

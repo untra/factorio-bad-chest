@@ -792,7 +792,7 @@ function update_scanner_gui(gui)
   if settings.global["recursive-blueprints-area"].value == "corner" then
     -- Convert from top left corner to center
     x = x + math.floor(scanner.width/2)
-    y = y + math.floor(scanner.width/2)
+    y = y + math.floor(scanner.height/2)
   end
   local minimap = gui.children[2].children[3].children[2].children[1]
   minimap.position = {
@@ -876,7 +876,7 @@ function scan_resources(scanner)
   if settings.global["recursive-blueprints-area"].value == "corner" then
     -- Convert from top left corner to center
     x = x + math.floor(scanner.width/2)
-    y = y + math.floor(scanner.width/2)
+    y = y + math.floor(scanner.height/2)
   end
 
   -- Subtract 1 pixel from the edges to avoid tile overlap
@@ -968,7 +968,7 @@ function count_resources(surface, area, resources, blacklist)
   end
   -- Water
   resources.fluid["water"] = (resources.fluid["water"] or 0) + surface.count_tiles_filtered{
-    area = area,
+    area = {{round(area[1][1]), round(area[1][2])},{round(area[2][1]), round(area[2][2])}},
     collision_mask = "water-tile",
   }
 end
