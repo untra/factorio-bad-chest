@@ -63,6 +63,15 @@ function on_built_scanner(entity, event)
   scan_resources(scanner)
 end
 
+-- Delete signals from uninstalled mods
+function mark_unknown_signals(scanner)
+  for _, signal in pairs{"x_signal", "y_signal", "width_signal", "height_signal"} do
+    if scanner[signal] and not get_signal_sprite(scanner[signal]) then
+      scanner[signal] = {type = "virtual", name = "signal-unknown"}
+    end
+  end
+end
+
 function on_destroyed_scanner(unit_number)
   local scanner = global.scanners[unit_number]
   if scanner then

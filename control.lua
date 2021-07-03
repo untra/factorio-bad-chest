@@ -65,11 +65,7 @@ function on_mods_changed(event)
   -- Delete signals from uninstalled mods
   if not global.scanners then global.scanners = {} end
   for _, scanner in pairs(global.scanners) do
-    for _, signal in pairs{"x_signal", "y_signal", "width_signal", "height_signal"} do
-      if scanner[signal] and not get_signal_sprite(scanner[signal]) then
-        scanner[signal] = {type = "virtual", name = "signal-unknown"}
-      end
-    end
+    mark_unknown_signals(scanner)
   end
 
   cache_blueprint_signals()
