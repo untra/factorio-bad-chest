@@ -156,17 +156,6 @@ function on_entity_destroyed(event)
   on_destroyed_scanner(event.unit_number)
 end
 
--- Train fuel item-request-proxy has been completed
-function on_item_request(unit_number)
-  local carriage = global.fuel_requests[unit_number]
-  if not carriage then return end
-  global.fuel_requests[unit_number] = nil
-  if carriage.valid and carriage.train then
-    -- Done waiting for fuel, we can turn on automatic mode now
-    enable_automatic_mode(carriage.train)
-  end
-end
-
 -- Add automatic mode tags to blueprint
 function on_player_setup_blueprint(event)
   -- Discard old tags

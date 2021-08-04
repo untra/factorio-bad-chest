@@ -216,3 +216,14 @@ function enable_automatic_mode(train)
   -- Turn on automatic mode
   train.manual_mode = false
 end
+
+-- Train fuel item-request-proxy has been completed
+function on_item_request(unit_number)
+  local carriage = global.fuel_requests[unit_number]
+  if not carriage then return end
+  global.fuel_requests[unit_number] = nil
+  if carriage.valid and carriage.train then
+    -- Done waiting for fuel, we can turn on automatic mode now
+    enable_automatic_mode(carriage.train)
+  end
+end
