@@ -15,6 +15,9 @@ function on_mods_changed(event)
   global.tag_cache = {}
   global.cliff_explosives = (game.item_prototypes["cliff-explosives"] ~= nil)
   global.artillery_shell = (game.item_prototypes["artillery-shell"] ~= nil)
+  if not global.networks then
+    global.networks = {}
+  end
 
   -- Migrations
   if event
@@ -34,7 +37,6 @@ function on_mods_changed(event)
     -- Migrate deployer index
     if event.mod_changes["recursive-blueprints"].old_version < "1.1.8" then
       global.net_cache = nil
-      global.networks = {}
       local new_deployers = {}
       for _, deployer in pairs(global.deployers or {}) do
         if deployer.valid then
