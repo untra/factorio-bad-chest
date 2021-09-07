@@ -1,7 +1,7 @@
 {
   "name":"recursive-blueprints",
   "author":"Doc, justarandomgeek, DaveMcW",
-  "version":"1.2.2",
+  "version":"1.2.3",
   "title":"Recursive Blueprints",
   "homepage":"",
   "description":"Automate blueprints to build a self-expanding factory.",

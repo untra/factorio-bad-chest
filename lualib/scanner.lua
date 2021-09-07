@@ -93,6 +93,7 @@ function on_destroyed_scanner(unit_number)
     global.deployers[unit_number] = nil
     global.networks[unit_number] = nil
     for _, player in pairs(game.players) do
+      -- Remove scanner gui
       if player.opened
       and player.opened.object_name == "LuaGuiElement"
       and player.opened.name == "recursive-blueprints-scanner"

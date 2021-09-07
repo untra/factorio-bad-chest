@@ -12,7 +12,6 @@ function on_init()
 end
 
 function on_mods_changed(event)
-  global.tag_cache = {}
   global.cliff_explosives = (game.item_prototypes["cliff-explosives"] ~= nil)
   global.artillery_shell = (game.item_prototypes["artillery-shell"] ~= nil)
   if not global.networks then
@@ -149,7 +148,6 @@ function on_built(event)
       end
     end
   end
-
 end
 
 function on_entity_destroyed(event)
@@ -158,12 +156,9 @@ function on_entity_destroyed(event)
   on_destroyed_scanner(event.unit_number)
 end
 
--- Add automatic mode tags to blueprint
 function on_player_setup_blueprint(event)
-  -- Discard old tags
-  global.tag_cache[event.player_index] = nil
-
-  -- Search the selected area for trains
+  -- Search the selected area for interesting prototypes
+  -- These prototypes help align the blueprint even if they are not used
   local player = game.get_player(event.player_index)
   local entities = player.surface.find_entities_filtered {
     area = event.area,
@@ -179,7 +174,7 @@ function on_player_setup_blueprint(event)
     },
   }
 
-  -- Check for trains in automatic mode
+  -- Check for scanners and automatic trains
   local found_tag = false
   for _, entity in pairs(entities) do
     if entity.type == "locomotive" and not entity.train.manual_mode then
@@ -194,36 +189,11 @@ function on_player_setup_blueprint(event)
 
   -- Add custom tags to blueprint
   local tags = create_tags(entities)
-  local bp = get_nested_blueprint(player.cursor_stack)
-  if bp and bp.valid_for_read and bp.is_blueprint then
-    add_tags_to_blueprint(tags, bp)
-  else
-    -- They are editing a new blueprint and we can't access it
-    -- Save the tags and add them later
-    global.tag_cache[event.player_index] = tags
-  end
-end
-
-function on_player_configured_blueprint(event)
-  -- Finally, we can access the blueprint!
-  -- Add custom tags to blueprint
-  local tags = global.tag_cache[event.player_index]
-  local bp = get_nested_blueprint(game.players[event.player_index].cursor_stack)
-  if tags and bp and bp.valid_for_read and bp.is_blueprint then
-    add_tags_to_blueprint(global.tag_cache[event.player_index], bp)
-  end
-  -- Discard old tags
-  global.tag_cache[event.player_index] = nil
+  local bp = get_blueprint_to_setup(player) or get_nested_blueprint(player.cursor_stack)
+  add_tags_to_blueprint(tags, bp)
 end
 
 function on_gui_opened(event)
-  -- Discard old tags when a different blueprint is opened
-  if event.gui_type == defines.gui_type.item
-  and event.item
-  and event.item.valid_for_read
-  and event.item.is_blueprint then
-    global.tag_cache[event.player_index] = nil
-  end
   -- Replace constant-combinator gui with scanner gui
   if event.gui_type == defines.gui_type.entity
   and event.entity
@@ -235,11 +205,11 @@ function on_gui_opened(event)
 end
 
 function on_gui_closed(event)
+  -- Remove scanner gui
   if event.gui_type == defines.gui_type.custom
   and event.element
   and event.element.valid
   and event.element.name == "recursive-blueprints-scanner" then
-    -- Remove gui
     destroy_gui(event.element)
   end
 end
@@ -272,6 +242,7 @@ function on_gui_confirmed(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
+
   if name == "recursive-blueprints-constant" then
     -- Copy constant value back to scanner gui
     set_scanner_value(event.element)
@@ -282,6 +253,7 @@ function on_gui_text_changed(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
+
   if name == "recursive-blueprints-constant" then
     -- Update slider
     copy_text_value(event.element)
@@ -292,6 +264,7 @@ function on_gui_value_changed(event)
   if not event.element.valid then return end
   local name = event.element.name
   if not name then return end
+
   if name == "recursive-blueprints-slider" then
     -- Update number field
     copy_slider_value(event.element)
@@ -309,7 +282,6 @@ script.on_event(defines.events.on_gui_confirmed, on_gui_confirmed)
 script.on_event(defines.events.on_gui_text_changed, on_gui_text_changed)
 script.on_event(defines.events.on_gui_value_changed, on_gui_value_changed)
 script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
-script.on_event(defines.events.on_player_configured_blueprint, on_player_configured_blueprint)
 script.on_event(defines.events.on_entity_destroyed, on_entity_destroyed)
 script.on_event(defines.events.on_runtime_mod_setting_changed, on_setting_changed)
 

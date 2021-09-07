@@ -52,6 +52,13 @@ function round(n)
   return math.floor(n + 0.5)
 end
 
+function get_blueprint_to_setup(player)
+  local bp = player.blueprint_to_setup
+  if not bp then return nil end
+  if not bp.valid_for_read then return nil end
+  return bp
+end
+
 -- Create automatic mode tags for each train
 function create_tags(entities)
   local result = {}
@@ -90,6 +97,8 @@ function add_tags_to_blueprint(tags, blueprint)
   if not tags then return end
   if next(tags) == nil then return end
   if not blueprint then return end
+  if not blueprint.valid_for_read then return end
+  if not blueprint.is_blueprint then return end
   if not blueprint.is_blueprint_setup() then return end
   local blueprint_entities = blueprint.get_blueprint_entities()
   if not blueprint_entities then return end
