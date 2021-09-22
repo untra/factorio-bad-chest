@@ -12,6 +12,7 @@ function on_init()
 end
 
 function on_mods_changed(event)
+  global.deployer_index = nil
   global.cliff_explosives = (game.item_prototypes["cliff-explosives"] ~= nil)
   global.artillery_shell = (game.item_prototypes["artillery-shell"] ~= nil)
   if not global.networks then
@@ -85,8 +86,8 @@ end
 
 function on_tick()
   -- Check one deployer per tick for new circuit network connections
-  local index = global.deployer_index
-  global.deployer_index = next(global.deployers, global.deployer_index)
+  index = global.deployer_index
+  test = next(global.deployers, global.deployer_index)
   if global.deployers[index] then
     if global.deployers[index].valid then
       update_network(global.deployers[index])

@@ -90,7 +90,6 @@ function on_destroyed_scanner(unit_number)
   local scanner = global.scanners[unit_number]
   if scanner then
     global.scanners[unit_number] = nil
-    global.deployers[unit_number] = nil
     global.networks[unit_number] = nil
     for _, player in pairs(game.players) do
       -- Remove scanner gui
