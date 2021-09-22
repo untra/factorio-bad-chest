@@ -16,6 +16,9 @@ local add_scanner_resource = function(entity)
   end
 end
 
+-- Uncharted chunks
+resources["item"]["signal-black"] = 1
+
 -- Water
 resources["fluid"]["water"] = 1
 

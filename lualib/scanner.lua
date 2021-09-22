@@ -838,7 +838,7 @@ function update_scanner_output(output_flow, entity)
       button.sprite = get_signal_sprite(signal.signal)
       button.tooltip = {"",
        "[font=default-bold][color=255,230,192]",
-       {signal.signal.type .. "-name." .. signal.signal.name},
+       get_localised_name(signal.signal),
        ":[/color][/font] ",
        util.format_number(signal.count),
       }
@@ -874,7 +874,7 @@ end
 function scan_resources(scanner)
   if not scanner then return end
   if not scanner.entity.valid then return end
-  local resources = {item = {}, fluid = {}}
+  local resources = {item = {}, fluid = {}, virtual = {}}
   local p = scanner.entity.position
   local force = scanner.entity.force
   local surface = scanner.entity.surface
@@ -903,7 +903,7 @@ function scan_resources(scanner)
     for y = y1, math.ceil(y2 / 32) * 32, 32 do
       local chunk_x = math.floor(x / 32)
       local chunk_y = math.floor(y / 32)
-      -- Chunk must be visible
+      -- Chunk must be charted
       if force.is_chunk_charted(surface, {chunk_x, chunk_y}) then
         local left = chunk_x * 32
         local right = left + 32
@@ -915,6 +915,9 @@ function scan_resources(scanner)
         if bottom > y2 then bottom = y2 end
         local area = {{left, top}, {right, bottom}}
         count_resources(force, surface, area, resources, blacklist)
+      else
+        -- Add uncharted chunk
+        resources.virtual["signal-black"] = (resources.virtual["signal-black"] or 0) + 1
       end
     end
   end

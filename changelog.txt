@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.4
 Date: 2021-09-22
+  Features:
+    - Resource scanner detects uncharted chunks.
   Bugfixes:
     - Fixed potential for corruption in next().
     - Re-selecting the contents of a blueprint works correctly, if you open it by right-clicking a blueprint in your inventory. (Opening it from the blueprint library or a blueprint book still fails.)
