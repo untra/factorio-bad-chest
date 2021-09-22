@@ -8,6 +8,7 @@ function on_init()
   global.fuel_requests = {}
   global.networks = {}
   global.scanners = {}
+  global.blueprints = {}
   on_mods_changed()
 end
 
@@ -18,6 +19,7 @@ function on_mods_changed(event)
   if not global.networks then
     global.networks = {}
   end
+  global.blueprints = {}
 
   -- Migrations
   if event
@@ -188,13 +190,28 @@ function on_player_setup_blueprint(event)
   end
   if not found_tag then return end
 
+  -- Find the blueprint item
+  local bp = get_blueprint_to_setup(player) or get_nested_blueprint(player.cursor_stack)
+  if not bp or not bp.valid_for_read or not bp.is_blueprint or not bp.is_blueprint_setup() then
+    -- Maybe the player is selecting new contents for a blueprint?
+    bp = global.blueprints[event.player_index]
+  end
+
   -- Add custom tags to blueprint
   local tags = create_tags(entities)
-  local bp = get_blueprint_to_setup(player) or get_nested_blueprint(player.cursor_stack)
   add_tags_to_blueprint(tags, bp)
 end
 
 function on_gui_opened(event)
+  -- Save a reference to the blueprint item in case the player selects new contents
+  global.blueprints[event.player_index] = nil
+  if event.gui_type == defines.gui_type.item
+  and event.item
+  and event.item.valid_for_read
+  and event.item.is_blueprint then
+    global.blueprints[event.player_index] = event.item
+  end
+
   -- Replace constant-combinator gui with scanner gui
   if event.gui_type == defines.gui_type.entity
   and event.entity
