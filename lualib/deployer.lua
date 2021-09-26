@@ -110,7 +110,6 @@ function on_tick_deployer(network)
   local deploy = get_signal(network, DEPLOY_SIGNAL)
   local bp = nil
   if deploy > 0 then
-    if not network.deployer.valid then return end
     bp = network.deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
 
@@ -144,7 +143,6 @@ function on_tick_deployer(network)
   end
 
   if deploy == -1 then
-    if not network.deployer.valid then return end
     bp = network.deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
     if bp.is_deconstruction_item then
@@ -161,17 +159,14 @@ function on_tick_deployer(network)
   local deconstruct = get_signal(network, DECONSTRUCT_SIGNAL)
   if deconstruct == -1 then
     -- Deconstruct area
-    if not network.deployer.valid then return end
     deconstruct_area(bp, network, true)
     return
   elseif deconstruct == -2 then
     -- Deconstruct self
-    if not network.deployer.valid then return end
     network.deployer.order_deconstruction(network.deployer.force)
     return
   elseif deconstruct == -3 then
     -- Cancel deconstruction in area
-    if not network.deployer.valid then return end
     deconstruct_area(bp, network, false)
     return
   end
@@ -180,12 +175,10 @@ function on_tick_deployer(network)
   local copy = get_signal(network, COPY_SIGNAL)
   if copy == 1 then
     -- Copy blueprint
-    if not network.deployer.valid then return end
     copy_blueprint(network)
     return
   elseif copy == -1 then
     -- Delete blueprint
-    if not network.deployer.valid then return end
     local stack = network.deployer.get_inventory(defines.inventory.chest)[1]
     if not stack.valid_for_read then return end
     if stack.is_blueprint
