@@ -5,6 +5,7 @@ deployer.icon = "__recursive-blueprints__/graphics/blueprint-deployer-icon.png"
 deployer.minable.result = "blueprint-deployer"
 deployer.inventory_size = 1
 deployer.enable_inventory_bar = false
+deployer.se_allow_in_space = true,
 deployer.picture.layers = {
   {
     filename = "__recursive-blueprints__/graphics/blueprint-deployer.png",
