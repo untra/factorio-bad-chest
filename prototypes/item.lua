@@ -9,7 +9,6 @@ data:extend{
     order = "c[signal]-b[blueprint-deployer]",
     place_result = "blueprint-deployer",
     stack_size = 50,
-    se_allow_in_space = true,
   },
   {
     type = "item",
