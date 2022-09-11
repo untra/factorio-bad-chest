@@ -246,9 +246,6 @@ function copy_blueprint_book_page(network)
       -- Copy the indexed blueprint
       local bp = pick_blueprint_book_index(stack, index)
       if bp == nil then return end
-      -- TODO: copy nested blueprint?
-      -- bp = get_nested_blueprint(bp)
-      -- if not bp or not bp.valid_for_read then return end
       inventory[1].set_stack(bp)
       return
     end

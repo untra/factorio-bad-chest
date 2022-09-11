@@ -44,7 +44,7 @@ Copy blueprint or blueprint book. The original blueprint must be in a chest (or 
 
 ---
 
-![Signal C = 2](docs/signal-c-1.jpg)
+![Signal C = 2](docs/signal-c-3.jpg)
 
 Copy blueprint book at index i into a blueprint. The original blueprint book must be in a chest (or inserter with read hand contents) on the same circuit network as the deployer chest.
 
@@ -66,6 +66,8 @@ Deconstruction and upgrades use X,Y as the center of the area. This can be chang
 
 ---
 
-The mod also adds a Resource Scanner that can help detect places to build.
+The mod also adds a Resource Scanner that can help detect places to build, and identify enemy forces and placed train rails across areas of the map.
+
+The scanner is also configurable through the circuit network.
 
 ![Resource Scanner](docs/scanner.png)
