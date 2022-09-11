@@ -44,6 +44,12 @@ Copy blueprint or blueprint book. The original blueprint must be in a chest (or 
 
 ---
 
+![Signal C = 2](docs/signal-c-1.jpg)
+
+Copy blueprint book at index i into a blueprint. The original blueprint book must be in a chest (or inserter with read hand contents) on the same circuit network as the deployer chest.
+
+---
+
 ![Signal C = -1](docs/signal-c-2.jpg)
 
 Delete blueprint or blueprint book.

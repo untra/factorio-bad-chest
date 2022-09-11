@@ -16,6 +16,7 @@ function on_mods_changed(event)
   global.deployer_index = nil
   global.cliff_explosives = (game.item_prototypes["cliff-explosives"] ~= nil)
   global.artillery_shell = (game.item_prototypes["artillery-shell"] ~= nil)
+  global.rail = (game.item_prototypes["rail"] ~= nil)
   if not global.networks then
     global.networks = {}
   end

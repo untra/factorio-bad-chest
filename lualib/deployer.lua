@@ -4,6 +4,7 @@ local DECONSTRUCT_SIGNAL = {name="deconstruction-planner", type="item"}
 local COPY_SIGNAL = {name="signal-C", type="virtual"}
 local X_SIGNAL = {name="signal-X", type="virtual"}
 local Y_SIGNAL = {name="signal-Y", type="virtual"}
+local INDEX_SIGNAL = {name="signal-I", type="virtual"}
 local WIDTH_SIGNAL = {name="signal-W", type="virtual"}
 local HEIGHT_SIGNAL = {name="signal-H", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
@@ -104,6 +105,18 @@ function upgrade_area(bp, network, upgrade)
   end
 end
 
+-- returns the blueprint at the given index
+function pick_blueprint_book_index(bp, index)
+    local inventory = bp.get_inventory(defines.inventory.item_main)
+    if #inventory < 1 then return nil end
+    if index > #inventory then
+      index = bp.active_index
+    end
+    local bpp = inventory[index]
+    if not bp.valid_for_read then return nil end
+    return bpp
+end
+
 function on_tick_deployer(network)
   if not network.red and not network.green then return end
   -- Read deploy signal
@@ -115,13 +128,8 @@ function on_tick_deployer(network)
 
     -- Pick item from blueprint book
     if bp.is_blueprint_book then
-      local inventory = bp.get_inventory(defines.inventory.item_main)
-      if #inventory < 1 then return end
-      if deploy > #inventory then
-        deploy = bp.active_index
-      end
-      bp = inventory[deploy]
-      if not bp.valid_for_read then return end
+      bp = pick_blueprint_book_index(bp, deploy)
+      if bp == nil then return end
     end
 
     -- Pick active item from nested blueprint books
@@ -176,6 +184,10 @@ function on_tick_deployer(network)
     -- Copy blueprint
     copy_blueprint(network)
     return
+  elseif copy == 2 then
+    -- Copy blueprint
+    copy_blueprint_book_page(network)
+    return
   elseif copy == -1 then
     -- Delete blueprint
     local stack = network.deployer.get_inventory(defines.inventory.chest)[1]
@@ -219,6 +231,28 @@ function get_area(network)
     {position.x + X - W/2, position.y + Y - H/2},
     {position.x + X + W/2, position.y + Y + H/2},
   }
+end
+
+function copy_blueprint_book_page(network)
+  local inventory = network.deployer.get_inventory(defines.inventory.chest)
+  if not inventory.is_empty() then return end
+  local index = get_signal(network, INDEX_SIGNAL)
+  if index == 0 then return end
+  local signal = {name="blueprint-book", type="item"}
+  if get_signal(network, signal) >= 1 then
+    -- Signal exists, now we have to search for the blueprint
+    local stack = find_stack_in_network(network.deployer, signal.name)
+    if stack and stack.is_blueprint_book then
+      -- Copy the indexed blueprint
+      local bp = pick_blueprint_book_index(stack, index)
+      if bp == nil then return end
+      -- TODO: copy nested blueprint?
+      -- bp = get_nested_blueprint(bp)
+      -- if not bp or not bp.valid_for_read then return end
+      inventory[1].set_stack(bp)
+      return
+    end
+  end
 end
 
 function copy_blueprint(network)

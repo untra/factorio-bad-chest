@@ -982,6 +982,9 @@ function count_resources(force, surface, area, resources, blacklist)
     elseif global.artillery_shell and MILITARY_STRUCTURES[resource.type] then
       -- Enemy base
       resources.item["artillery-shell"] = (resources.item["artillery-shell"] or 0) - 1
+    elseif global.rail and resource.type == "rail" then
+      -- Train Rail
+      resources.item["rail"] = (resources.item["rail"] or 0) + 1
     elseif (resource.type == "tree" or resource.type == "fish" or prototype.count_as_rock_for_filtered_deconstruction)
     and prototype.mineable_properties.minable
     and prototype.mineable_properties.products then
