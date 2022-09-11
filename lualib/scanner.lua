@@ -23,6 +23,12 @@ local MILITARY_STRUCTURES = {
   ["unit-spawner"] = true,
 }
 
+-- Rail structures https://wiki.factorio.com/Prototype/Rail
+local RAIL_STRUCTURES = {
+  ["curved-rail"] = true,
+  ["straight-rail"] = true
+}
+
 function on_tick_scanner(network)
   local scanner = global.scanners[network.deployer.unit_number]
   if not scanner then return end
@@ -982,7 +988,7 @@ function count_resources(force, surface, area, resources, blacklist)
     elseif global.artillery_shell and MILITARY_STRUCTURES[resource.type] then
       -- Enemy base
       resources.item["artillery-shell"] = (resources.item["artillery-shell"] or 0) - 1
-    elseif global.rail and resource.type == "rail" then
+    elseif global.rail and RAIL_STRUCTURES[resource.type] then
       -- Train Rail
       resources.item["rail"] = (resources.item["rail"] or 0) + 1
     elseif (resource.type == "tree" or resource.type == "fish" or prototype.count_as_rock_for_filtered_deconstruction)
